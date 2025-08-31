@@ -1,0 +1,57 @@
+{
+  "name": "medilink",
+  "version": "1.0.0",
+  "description": "MediLink is a smart medical record &amp; report assistant that helps families securely store, manage, and understand health records. It uses AI to simplify lab reports, provides medication and appointment reminders, and generates emergency health summaries for quick access",
+  "main": "index.js",
+  "scripts": {
+    "android": "react-native run-android",
+    "ios": "react-native run-ios",
+    "start": "react-native start",
+    "test": "jest",
+    "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
+    "type-check": "tsc --noEmit"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Jeevanth98/MediLink.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Jeevanth98/MediLink/issues"
+  },
+  "homepage": "https://github.com/Jeevanth98/MediLink#readme",
+  "dependencies": {
+    "@react-native-async-storage/async-storage": "^2.2.0",
+    "@react-navigation/bottom-tabs": "^7.4.7",
+    "@react-navigation/native": "^7.1.17",
+    "@react-navigation/stack": "^7.4.8",
+    "react": "^19.1.1",
+    "react-native": "^0.81.1",
+    "react-native-async-storage": "^0.0.1",
+    "react-native-safe-area-context": "^5.6.1",
+    "react-native-screens": "^4.15.4",
+    "react-native-vector-icons": "^10.3.0"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.28.3",
+    "@babel/preset-env": "^7.28.3",
+    "@babel/runtime": "^7.28.3",
+    "@react-native-community/cli": "^20.0.1",
+    "@react-native/babel-preset": "^0.81.1",
+    "@react-native/eslint-config": "^0.81.1",
+    "@react-native/metro-config": "^0.81.1",
+    "@testing-library/jest-native": "^5.4.3",
+    "@testing-library/react-native": "^13.3.3",
+    "@tsconfig/react-native": "^3.0.6",
+    "@types/react": "^19.1.12",
+    "@types/react-native": "^0.72.8",
+    "@types/react-test-renderer": "^19.1.0",
+    "eslint": "^8.57.1",
+    "jest": "^30.1.1",
+    "metro-react-native-babel-preset": "^0.77.0",
+    "react-test-renderer": "^19.1.1",
+    "typescript": "^5.9.2"
+  }
+}
