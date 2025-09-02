@@ -32,15 +32,6 @@ export const FamilyProvider: React.FC<FamilyProviderProps> = ({ children }) => {
   const [isLoading, setIsLoading] = useState(false);
   const { user, isAuthenticated } = useAuth();
 
-  useEffect(() => {
-    if (isAuthenticated && user) {
-      loadFamilyMembers();
-    } else {
-      setMembers([]);
-      setSelectedMember(null);
-    }
-  }, [isAuthenticated, user, loadFamilyMembers]);
-
   const getFamilyMembersKey = () => {
     return `familyMembers_${user?.id}`;
   };
@@ -71,7 +62,16 @@ export const FamilyProvider: React.FC<FamilyProviderProps> = ({ children }) => {
     } finally {
       setIsLoading(false);
     }
-  }, [user, selectedMember]);
+  }, [user, selectedMember, getFamilyMembersKey]);
+
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      loadFamilyMembers();
+    } else {
+      setMembers([]);
+      setSelectedMember(null);
+    }
+  }, [isAuthenticated, user, loadFamilyMembers]);
 
   const saveFamilyMembers = async (updatedMembers: FamilyMember[]) => {
     try {

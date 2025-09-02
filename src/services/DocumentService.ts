@@ -205,7 +205,7 @@ export class DocumentService {
     return 'scan';
   }
 
-  static async deleteDocument(documentId: string): Promise<boolean> {
+  static async deleteDocument(_documentId: string): Promise<boolean> {
     try {
       // For demo purposes, simulate successful deletion
       return true;

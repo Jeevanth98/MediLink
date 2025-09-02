@@ -20,6 +20,9 @@ import AIReportsScreen from '../screens/reports/AIReportsScreen';
 import RemindersScreen from '../screens/reminders/RemindersScreen';
 import AddMedicineReminderScreen from '../screens/reminders/AddMedicineReminderScreen';
 import AddAppointmentReminderScreen from '../screens/reminders/AddAppointmentReminderScreen';
+import EmergencyScreen from '../screens/emergency/EmergencyScreen';
+import AddEmergencyContactScreen from '../screens/emergency/AddEmergencyContactScreen';
+import EditEmergencyHealthScreen from '../screens/emergency/EditEmergencyHealthScreen';
 
 export type RootStackParamList = {
   Login: undefined;
@@ -33,6 +36,9 @@ export type RootStackParamList = {
   RecordDetails: { recordId: string };
   AddMedicineReminder: undefined;
   AddAppointmentReminder: undefined;
+  AddEmergencyContact: undefined;
+  EditEmergencyContact: { contactId: string };
+  EditEmergencyHealth: { memberId: string };
 };
 
 export type TabParamList = {
@@ -104,7 +110,7 @@ const TabNavigator = () => (
     />
     <Tab.Screen 
       name="Emergency" 
-      component={HomeScreen} // Placeholder for Module 5
+      component={EmergencyScreen}
       options={{
         tabBarIcon: ({ color, size }) => (
           <Icon name="medical-bag" size={size} color={color} />
@@ -175,6 +181,22 @@ const MainStack = () => (
           component={AddAppointmentReminderScreen}
           options={{ 
             title: 'Add Appointment Reminder',
+            headerShown: true,
+          }}
+        />
+        <Stack.Screen 
+          name="AddEmergencyContact" 
+          component={AddEmergencyContactScreen}
+          options={{ 
+            title: 'Add Emergency Contact',
+            headerShown: true,
+          }}
+        />
+        <Stack.Screen 
+          name="EditEmergencyHealth" 
+          component={EditEmergencyHealthScreen}
+          options={{ 
+            title: 'Emergency Health Info',
             headerShown: true,
           }}
         />
