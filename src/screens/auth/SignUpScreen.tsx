@@ -35,13 +35,13 @@ const SignUpScreen: React.FC<SignUpScreenProps> = ({ navigation }) => {
 
   const { signUp } = useAuth();
 
-  const validateEmail = (email: string) => {
+  const validateEmail = (emailAddress: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
+    return emailRegex.test(emailAddress);
   };
 
-  const validatePassword = (password: string) => {
-    return password.length >= 6;
+  const validatePassword = (passwordValue: string) => {
+    return passwordValue.length >= 6;
   };
 
   const handleSignUp = async () => {

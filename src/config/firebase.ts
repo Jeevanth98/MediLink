@@ -26,7 +26,7 @@ try {
   }
   
   // Test if Firebase is properly initialized by trying to get the auth instance
-  const authInstance = auth();
+  auth();
   firebaseAuth = auth;
   firebaseFirestore = firestore;
   console.log('Firebase initialized successfully');

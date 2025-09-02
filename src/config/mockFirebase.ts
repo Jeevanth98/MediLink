@@ -1,5 +1,4 @@
 // Mock Firebase services for development/testing
-import { createContext } from 'react';
 
 export interface MockUser {
   uid: string;
@@ -31,7 +30,7 @@ class MockFirebaseAuth {
     };
   }
 
-  async createUserWithEmailAndPassword(email: string, password: string): Promise<{ user: MockUser }> {
+  async createUserWithEmailAndPassword(email: string, _password: string): Promise<{ user: MockUser }> {
     const user: MockUser = {
       uid: `demo-user-${Date.now()}`,
       email,
@@ -47,7 +46,7 @@ class MockFirebaseAuth {
     return { user };
   }
 
-  async signInWithEmailAndPassword(email: string, password: string): Promise<{ user: MockUser }> {
+  async signInWithEmailAndPassword(email: string, _password: string): Promise<{ user: MockUser }> {
     const user: MockUser = {
       uid: `demo-user-signin-${Date.now()}`,
       email,
@@ -65,7 +64,7 @@ class MockFirebaseAuth {
 
   async signInWithPhoneNumber(phoneNumber: string): Promise<MockConfirmationResult> {
     return {
-      confirm: async (verificationCode: string) => {
+      confirm: async (_verificationCode: string) => {
         const user: MockUser = {
           uid: `demo-user-phone-${Date.now()}`,
           email: null,

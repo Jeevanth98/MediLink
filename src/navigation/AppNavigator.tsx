@@ -16,6 +16,10 @@ import LoadingScreen from '../screens/LoadingScreen';
 import MedicalRecordsScreen from '../screens/records/MedicalRecordsScreen';
 import UploadDocumentScreen from '../screens/records/UploadDocumentScreen';
 import AddFamilyMemberScreen from '../screens/family/AddFamilyMemberScreen';
+import AIReportsScreen from '../screens/reports/AIReportsScreen';
+import RemindersScreen from '../screens/reminders/RemindersScreen';
+import AddMedicineReminderScreen from '../screens/reminders/AddMedicineReminderScreen';
+import AddAppointmentReminderScreen from '../screens/reminders/AddAppointmentReminderScreen';
 
 export type RootStackParamList = {
   Login: undefined;
@@ -27,6 +31,8 @@ export type RootStackParamList = {
   FamilyProfile: { memberId: string };
   UploadDocument: undefined;
   RecordDetails: { recordId: string };
+  AddMedicineReminder: undefined;
+  AddAppointmentReminder: undefined;
 };
 
 export type TabParamList = {
@@ -41,7 +47,7 @@ const Stack = createStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<TabParamList>();
 
 // Simple icon component using View
-const Icon = ({ name, size, color }: { name: string; size: number; color: string }) => (
+const Icon = ({ size, color }: { name: string; size: number; color: string }) => (
   <View style={{ 
     width: size, 
     height: size, 
@@ -79,7 +85,7 @@ const TabNavigator = () => (
     />
     <Tab.Screen 
       name="Reports" 
-      component={HomeScreen} // Placeholder for Module 3
+      component={AIReportsScreen}
       options={{
         tabBarIcon: ({ color, size }) => (
           <Icon name="chart-line" size={size} color={color} />
@@ -89,7 +95,7 @@ const TabNavigator = () => (
     />
     <Tab.Screen 
       name="Reminders" 
-      component={HomeScreen} // Placeholder for Module 4
+      component={RemindersScreen}
       options={{
         tabBarIcon: ({ color, size }) => (
           <Icon name="bell" size={size} color={color} />
@@ -153,6 +159,22 @@ const MainStack = () => (
           component={AddFamilyMemberScreen}
           options={{ 
             title: 'Add Family Member',
+            headerShown: true,
+          }}
+        />
+        <Stack.Screen 
+          name="AddMedicineReminder" 
+          component={AddMedicineReminderScreen}
+          options={{ 
+            title: 'Add Medicine Reminder',
+            headerShown: true,
+          }}
+        />
+        <Stack.Screen 
+          name="AddAppointmentReminder" 
+          component={AddAppointmentReminderScreen}
+          options={{ 
+            title: 'Add Appointment Reminder',
             headerShown: true,
           }}
         />

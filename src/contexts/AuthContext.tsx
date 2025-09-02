@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { FirebaseAuthTypes } from '@react-native-firebase/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { auth, firestore, isUsingMock } from '../config/firebase';
+import { auth, firestore } from '../config/firebase';
 import { User, AuthState } from '../types/User';
 
 interface AuthContextType extends AuthState {
@@ -51,7 +51,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           
           if (userDoc.exists()) {
             const userData = userDoc.data();
-            const user: User = {
+            const userProfile: User = {
               id: firebaseUser.uid,
               email: firebaseUser.email || '',
               username: userData?.username || firebaseUser.email?.split('@')[0] || 'User',
@@ -61,7 +61,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
               updatedAt: userData?.updatedAt?.toDate() || new Date(),
             };
             
-            setUser(user);
+            setUser(userProfile);
             setIsAuthenticated(true);
             await AsyncStorage.setItem('user', JSON.stringify(user));
           }

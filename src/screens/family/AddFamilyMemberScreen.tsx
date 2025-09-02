@@ -13,7 +13,6 @@ import {
   Button,
   Card,
   SegmentedButtons,
-  HelperText,
   Chip,
 } from 'react-native-paper';
 import { StackNavigationProp } from '@react-navigation/stack';

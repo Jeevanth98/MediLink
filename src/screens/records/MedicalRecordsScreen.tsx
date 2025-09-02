@@ -3,8 +3,6 @@ import {
   View,
   StyleSheet,
   ScrollView,
-  Alert,
-  Image,
 } from 'react-native';
 import {
   Text,
@@ -17,7 +15,6 @@ import {
   ProgressBar,
   IconButton,
   Menu,
-  Divider,
 } from 'react-native-paper';
 import { useRecords } from '../../contexts/RecordContext';
 import { useFamily } from '../../contexts/FamilyContext';
@@ -40,16 +37,14 @@ const MedicalRecordsScreen: React.FC<MedicalRecordsScreenProps> = ({ navigation 
     uploadProgress,
     searchRecords,
     filterRecords,
-    clearFilters,
     selectRecord,
-    refreshRecords,
   } = useRecords();
 
-  const { selectedMember, members } = useFamily();
+  const { selectedMember } = useFamily();
 
   useEffect(() => {
     searchRecords(searchQuery);
-  }, [searchQuery]);
+  }, [searchQuery, searchRecords]);
 
   useEffect(() => {
     if (selectedCategory === 'all') {
@@ -57,7 +52,7 @@ const MedicalRecordsScreen: React.FC<MedicalRecordsScreenProps> = ({ navigation 
     } else {
       filterRecords({ category: selectedCategory });
     }
-  }, [selectedCategory]);
+  }, [selectedCategory, filterRecords]);
 
   const getCategoryIcon = (category: RecordCategory): string => {
     const icons = {
@@ -231,7 +226,7 @@ const MedicalRecordsScreen: React.FC<MedicalRecordsScreenProps> = ({ navigation 
             <Text variant="bodyLarge">Loading records...</Text>
           </View>
         ) : sortedRecords.length > 0 ? (
-          sortedRecords.map((record, index) => (
+          sortedRecords.map((record) => (
             <Card
               key={record.id}
               style={styles.recordCard}

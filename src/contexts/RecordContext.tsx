@@ -1,5 +1,4 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import firestore from '@react-native-firebase/firestore';
 import { MedicalRecord, RecordState, RecordFilter, RecordCategory } from '../types/MedicalRecord';
 import { DocumentService } from '../services/DocumentService';
 import OCRService from '../services/OCRService';

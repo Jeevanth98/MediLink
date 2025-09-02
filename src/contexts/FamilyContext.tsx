@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { FamilyMember, FamilyState } from '../types/User';
 import { useAuth } from './SimpleAuthContext';
@@ -39,13 +39,13 @@ export const FamilyProvider: React.FC<FamilyProviderProps> = ({ children }) => {
       setMembers([]);
       setSelectedMember(null);
     }
-  }, [isAuthenticated, user]);
+  }, [isAuthenticated, user, loadFamilyMembers]);
 
   const getFamilyMembersKey = () => {
     return `familyMembers_${user?.id}`;
   };
 
-  const loadFamilyMembers = async () => {
+  const loadFamilyMembers = useCallback(async () => {
     if (!user) return;
     
     setIsLoading(true);
@@ -64,16 +64,14 @@ export const FamilyProvider: React.FC<FamilyProviderProps> = ({ children }) => {
         if (mainProfile && !selectedMember) {
           setSelectedMember(mainProfile);
         }
-      } else {
-        // Create main profile automatically if no members exist
-        await createMainProfile();
       }
+      // Note: No auto-creation of main profile - users can add themselves manually
     } catch (error) {
       console.error('Error loading family members:', error);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [user, selectedMember]);
 
   const saveFamilyMembers = async (updatedMembers: FamilyMember[]) => {
     try {
@@ -83,31 +81,6 @@ export const FamilyProvider: React.FC<FamilyProviderProps> = ({ children }) => {
       console.error('Error saving family members:', error);
       throw error;
     }
-  };
-
-  const createMainProfile = async () => {
-    if (!user) return;
-
-    const mainProfile: FamilyMember = {
-      id: `main-${user.id}`,
-      userId: user.id,
-      name: user.username || user.email.split('@')[0],
-      age: 25, // Default age
-      gender: 'male', // Default gender
-      bloodGroup: 'O+', // Default blood group
-      chronicConditions: [],
-      emergencyContact: {
-        name: 'Emergency Contact',
-        relationship: 'Contact',
-        phoneNumber: '911',
-      },
-      isMainProfile: true,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
-
-    await saveFamilyMembers([mainProfile]);
-    setSelectedMember(mainProfile);
   };
 
   const addFamilyMember = async (memberData: Omit<FamilyMember, 'id' | 'userId' | 'createdAt' | 'updatedAt'>) => {

@@ -81,14 +81,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  const signIn = async (email: string, password: string) => {
+  const signIn = async (email: string, _password: string) => {
     try {
       setIsLoading(true);
       
       // Simulate signin process
       await new Promise(resolve => setTimeout(resolve, 1000));
       
-      const user: User = {
+      const userProfile: User = {
         id: `demo-user-signin-${Date.now()}`,
         email,
         username: email.split('@')[0], // Extract username from email for demo
@@ -97,9 +97,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         updatedAt: new Date(),
       };
       
-      setUser(user);
+      setUser(userProfile);
       setIsAuthenticated(true);
-      await AsyncStorage.setItem('user', JSON.stringify(user));
+      await AsyncStorage.setItem('user', JSON.stringify(userProfile));
       
       console.log('Demo signin successful for:', email);
     } catch (error) {
@@ -125,7 +125,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  const signInWithPhone = async (phoneNumber: string) => {
+  const signInWithPhone = async (phoneNumber: string, _password?: string) => {
     // Show demo OTP message
     console.log('📱 DEMO MODE: For testing, use OTP code "123456"');
     console.log(`Demo OTP sent to ${phoneNumber}`);
@@ -137,7 +137,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         
         // Accept any 6-digit code for demo purposes
         if (verificationCode.length === 6) {
-          const user: User = {
+          const phoneUser: User = {
             id: `demo-user-phone-${Date.now()}`,
             email: `user${Date.now()}@demo.com`, // Generate demo email for phone users
             username: `user${Date.now()}`, // Generate demo username for phone users
@@ -147,9 +147,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             updatedAt: new Date(),
           };
           
-          setUser(user);
+          setUser(phoneUser);
           setIsAuthenticated(true);
-          await AsyncStorage.setItem('user', JSON.stringify(user));
+          await AsyncStorage.setItem('user', JSON.stringify(phoneUser));
           
           console.log('Demo phone signin successful for:', phoneNumber);
           return user;

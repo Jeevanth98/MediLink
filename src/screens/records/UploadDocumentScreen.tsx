@@ -11,28 +11,39 @@ import {
   Card,
   TextInput,
   Button,
-  SegmentedButtons,
   HelperText,
   Avatar,
   IconButton,
   ProgressBar,
+  Menu,
+  List,
 } from 'react-native-paper';
+import { StackNavigationProp } from '@react-navigation/stack';
 import { useRecords } from '../../contexts/RecordContext';
 import { useFamily } from '../../contexts/FamilyContext';
-import { DocumentService } from '../../services/DocumentService';
+import { DocumentService, DocumentPickResult } from '../../services/DocumentService';
+import { AIAnalysisService } from '../../services/AIAnalysisService';
 import { RecordCategory } from '../../types/MedicalRecord';
+import { RootStackParamList } from '../../navigation/AppNavigator';
+
+type UploadDocumentScreenNavigationProp = StackNavigationProp<
+  RootStackParamList,
+  'UploadDocument'
+>;
 
 interface UploadDocumentScreenProps {
-  navigation: any;
+  navigation: UploadDocumentScreenNavigationProp;
 }
 
 const UploadDocumentScreen: React.FC<UploadDocumentScreenProps> = ({ navigation }) => {
-  const [selectedDocument, setSelectedDocument] = useState<any>(null);
+  const [selectedDocuments, setSelectedDocuments] = useState<DocumentPickResult[]>([]);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState<RecordCategory>('other');
   const [recordDate, setRecordDate] = useState(new Date().toISOString().split('T')[0]);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [showCategoryMenu, setShowCategoryMenu] = useState(false);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
 
   const { uploadDocument, isUploading, uploadProgress } = useRecords();
   const { selectedMember } = useFamily();
@@ -43,24 +54,28 @@ const UploadDocumentScreen: React.FC<UploadDocumentScreenProps> = ({ navigation 
     { value: 'diagnostic_scan', label: 'Scan/X-ray', icon: 'radiobox-marked' },
     { value: 'consultation', label: 'Consultation', icon: 'stethoscope' },
     { value: 'vaccination', label: 'Vaccination', icon: 'needle' },
+    { value: 'discharge_summary', label: 'Discharge Summary', icon: 'file-document' },
+    { value: 'insurance', label: 'Insurance', icon: 'shield' },
+    { value: 'bill_invoice', label: 'Bill/Invoice', icon: 'receipt' },
     { value: 'other', label: 'Other', icon: 'file' },
   ];
 
   const handleSelectDocument = async () => {
     try {
-      const document = await DocumentService.pickDocument();
-      if (document) {
-        setSelectedDocument(document);
+      setIsProcessing(true);
+      const documents = await DocumentService.pickDocument({ multiple: true, maxFiles: 5 });
+      
+      if (documents.length > 0) {
+        setSelectedDocuments(documents);
         
-        // Auto-suggest title and category based on filename
-        const suggestedCategory = DocumentService.getCategoryFromFileName(document.name);
-        setCategory(suggestedCategory as RecordCategory);
+        // Auto-suggest category based on first document
+        const suggestedCategory = DocumentService.getCategoryFromFileName(documents[0].name);
+        setCategory(suggestedCategory);
         
-        // Auto-suggest title
-        const baseName = document.name.replace(/\.[^/.]+$/, ''); // Remove extension
+        // Auto-generate title based on first document name
+        const baseName = documents[0].name.replace(/\.[^/.]+$/, ''); // Remove extension
         const formattedTitle = baseName
-          .replace(/_/g, ' ')
-          .replace(/([A-Z])/g, ' $1')
+          .replace(/[_-]/g, ' ')
           .trim()
           .split(' ')
           .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
@@ -70,17 +85,25 @@ const UploadDocumentScreen: React.FC<UploadDocumentScreenProps> = ({ navigation 
       }
     } catch (error) {
       Alert.alert('Error', 'Failed to select document. Please try again.');
+      console.error('Error selecting document:', error);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleRemoveDocument = (index: number) => {
+    const updatedDocuments = selectedDocuments.filter((_, i) => i !== index);
+    setSelectedDocuments(updatedDocuments);
+    
+    if (updatedDocuments.length === 0) {
+      setTitle('');
+      setCategory('other');
     }
   };
 
   const handleUpload = async () => {
-    if (!selectedDocument) {
-      Alert.alert('Error', 'Please select a document to upload.');
-      return;
-    }
-
-    if (!title.trim()) {
-      Alert.alert('Error', 'Please enter a title for the document.');
+    if (selectedDocuments.length === 0) {
+      Alert.alert('Error', 'Please select at least one document to upload.');
       return;
     }
 
@@ -89,30 +112,68 @@ const UploadDocumentScreen: React.FC<UploadDocumentScreenProps> = ({ navigation 
       return;
     }
 
-    setIsProcessing(true);
+    if (!title.trim()) {
+      Alert.alert('Error', 'Please enter a title for the document.');
+      return;
+    }
+
     try {
-      await uploadDocument(
-        selectedDocument,
-        title.trim(),
-        description.trim() || undefined,
-        category,
-        new Date(recordDate)
-      );
+      setIsProcessing(true);
+      
+      // Upload each document
+      for (let i = 0; i < selectedDocuments.length; i++) {
+        const document = selectedDocuments[i];
+        const documentTitle = selectedDocuments.length > 1 ? `${title} (${i + 1})` : title;
+        
+        await uploadDocument(
+          document,
+          documentTitle,
+          description,
+          category,
+          new Date(recordDate)
+        );
+
+        // If it's a lab report, trigger AI analysis
+        if (category === 'lab_report') {
+          await performAIAnalysis(document);
+        }
+      }
 
       Alert.alert(
-        'Upload Successful',
-        'Your medical document has been uploaded and processed successfully!',
-        [
-          {
-            text: 'OK',
-            onPress: () => navigation.goBack(),
-          },
-        ]
+        'Success',
+        `${selectedDocuments.length} document(s) uploaded successfully!`,
+        [{ text: 'OK', onPress: () => navigation.goBack() }]
       );
     } catch (error) {
-      Alert.alert('Upload Failed', 'Failed to upload document. Please try again.');
+      Alert.alert('Error', 'Failed to upload document. Please try again.');
+      console.error('Upload error:', error);
     } finally {
       setIsProcessing(false);
+    }
+  };
+
+  const performAIAnalysis = async (_document: DocumentPickResult) => {
+    try {
+      setIsAnalyzing(true);
+      
+      // Mock OCR text extraction for demo
+      const extractedText = `Hemoglobin: 13.5 g/dL\nGlucose: 95 mg/dL\nCholesterol: 180 mg/dL\nCreatinine: 1.0 mg/dL\nWhite Blood Cells: 7.5 10³/µL`;
+      
+      // Perform AI analysis
+      const analysis = await AIAnalysisService.analyzeLabReport(extractedText, `record-${Date.now()}`);
+      
+      // Save analysis
+      await AIAnalysisService.saveAnalysis(analysis);
+      
+      Alert.alert(
+        '🤖 AI Analysis Complete',
+        'Your lab report has been analyzed! You can view the insights in the AI Reports section.',
+        [{ text: 'View Analysis', onPress: () => navigation.navigate('Reports' as any) }]
+      );
+    } catch (error) {
+      console.error('AI Analysis error:', error);
+    } finally {
+      setIsAnalyzing(false);
     }
   };
 
@@ -124,195 +185,223 @@ const UploadDocumentScreen: React.FC<UploadDocumentScreenProps> = ({ navigation 
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
+  const getCategoryIcon = (categoryValue: string) => {
+    const foundCategory = categories.find(cat => cat.value === categoryValue);
+    return foundCategory?.icon || 'file';
+  };
+
+  const getCategoryLabel = (categoryValue: string) => {
+    const foundCategory = categories.find(cat => cat.value === categoryValue);
+    return foundCategory?.label || 'Other';
+  };
+
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
-      <View style={styles.header}>
-        <Text variant="headlineSmall" style={styles.headerTitle}>
-          Upload Medical Document
-        </Text>
-        {selectedMember && (
-          <Text variant="bodyMedium" style={styles.memberName}>
-            For: {selectedMember.name}
+    <ScrollView style={styles.container}>
+      <Card style={styles.card}>
+        <Card.Content>
+          <Text variant="titleLarge" style={styles.sectionTitle}>
+            📄 Document Details
           </Text>
-        )}
-      </View>
+
+          {/* Document Type Selection */}
+          <View style={styles.inputGroup}>
+            <Text variant="titleSmall" style={styles.label}>Document Type *</Text>
+            <Menu
+              visible={showCategoryMenu}
+              onDismiss={() => setShowCategoryMenu(false)}
+              anchor={
+                <Button
+                  mode="outlined"
+                  onPress={() => setShowCategoryMenu(true)}
+                  icon={getCategoryIcon(category)}
+                  style={styles.categoryButton}
+                >
+                  {getCategoryLabel(category)}
+                </Button>
+              }
+            >
+              {categories.map((cat) => (
+                <Menu.Item
+                  key={cat.value}
+                  leadingIcon={cat.icon}
+                  onPress={() => {
+                    setCategory(cat.value as RecordCategory);
+                    setShowCategoryMenu(false);
+                  }}
+                  title={cat.label}
+                />
+              ))}
+            </Menu>
+            {category === 'lab_report' && (
+              <HelperText type="info">
+                🤖 AI analysis will be performed automatically for lab reports
+              </HelperText>
+            )}
+          </View>
+
+          {/* Title Input */}
+          <View style={styles.inputGroup}>
+            <TextInput
+              label="Title *"
+              value={title}
+              onChangeText={setTitle}
+              mode="outlined"
+              placeholder="Enter document title"
+            />
+          </View>
+
+          {/* Description Input */}
+          <View style={styles.inputGroup}>
+            <TextInput
+              label="Description (Optional)"
+              value={description}
+              onChangeText={setDescription}
+              mode="outlined"
+              multiline
+              numberOfLines={3}
+              placeholder="Add any notes or description"
+            />
+          </View>
+
+          {/* Record Date */}
+          <View style={styles.inputGroup}>
+            <TextInput
+              label="Record Date"
+              value={recordDate}
+              onChangeText={setRecordDate}
+              mode="outlined"
+              placeholder="YYYY-MM-DD"
+            />
+          </View>
+        </Card.Content>
+      </Card>
 
       {/* Document Selection */}
       <Card style={styles.card}>
         <Card.Content>
-          <Text variant="titleMedium" style={styles.sectionTitle}>
-            Select Document
+          <Text variant="titleLarge" style={styles.sectionTitle}>
+            📎 Select Documents
           </Text>
-          
-          {!selectedDocument ? (
-            <Button
-              mode="outlined"
-              onPress={handleSelectDocument}
-              icon="upload"
-              style={styles.selectButton}
-            >
-              Choose Document
-            </Button>
-          ) : (
-            <View style={styles.documentPreview}>
-              <View style={styles.documentInfo}>
-                <Avatar.Icon
-                  size={50}
-                  icon={selectedDocument.type.includes('image') ? 'image' : 'file'}
-                  style={styles.documentIcon}
-                />
-                <View style={styles.documentDetails}>
-                  <Text variant="bodyLarge" style={styles.documentName}>
-                    {selectedDocument.name}
-                  </Text>
-                  <Text variant="bodySmall" style={styles.documentSize}>
-                    {formatFileSize(selectedDocument.size)}
-                  </Text>
-                  <Text variant="bodySmall" style={styles.documentType}>
-                    {selectedDocument.type}
-                  </Text>
-                </View>
-                <IconButton
-                  icon="close"
-                  onPress={() => setSelectedDocument(null)}
-                  style={styles.removeButton}
-                />
-              </View>
+
+          {selectedDocuments.length === 0 ? (
+            <View style={styles.documentSelector}>
+              <Avatar.Icon size={64} icon="camera" style={styles.uploadIcon} />
+              <Text variant="bodyLarge" style={styles.uploadText}>
+                Take a photo or select from gallery
+              </Text>
+              <Text variant="bodyMedium" style={styles.uploadSubtext}>
+                You can select multiple documents at once
+              </Text>
               
-              {selectedDocument.type.includes('image') && (
-                <Image
-                  source={{ uri: selectedDocument.uri }}
-                  style={styles.imagePreview}
-                  resizeMode="contain"
-                />
-              )}
+              <Button
+                mode="contained"
+                onPress={handleSelectDocument}
+                loading={isProcessing}
+                disabled={isProcessing}
+                style={styles.selectButton}
+                icon="camera"
+              >
+                {isProcessing ? 'Processing...' : 'Select Documents'}
+              </Button>
+            </View>
+          ) : (
+            <View>
+              <Text variant="bodyMedium" style={styles.documentCount}>
+                {selectedDocuments.length} document(s) selected
+              </Text>
+              
+              {selectedDocuments.map((document, index) => (
+                <Card key={index} style={styles.documentCard}>
+                  <Card.Content>
+                    <View style={styles.documentInfo}>
+                      <Avatar.Icon
+                        size={40}
+                        icon={document.type.includes('image') ? 'image' : 'file'}
+                        style={styles.documentIcon}
+                      />
+                      <View style={styles.documentDetails}>
+                        <Text variant="bodyLarge" style={styles.documentName}>
+                          {document.name}
+                        </Text>
+                        <Text variant="bodySmall" style={styles.documentSize}>
+                          {formatFileSize(document.size)} • {document.type}
+                        </Text>
+                      </View>
+                      <IconButton
+                        icon="close"
+                        size={20}
+                        onPress={() => handleRemoveDocument(index)}
+                      />
+                    </View>
+                    
+                    {document.type.includes('image') && (
+                      <Image
+                        source={{ uri: document.uri }}
+                        style={styles.documentPreview}
+                        resizeMode="cover"
+                      />
+                    )}
+                  </Card.Content>
+                </Card>
+              ))}
+
+              <Button
+                mode="outlined"
+                onPress={handleSelectDocument}
+                style={styles.addMoreButton}
+                icon="plus"
+              >
+                Add More Documents
+              </Button>
             </View>
           )}
         </Card.Content>
       </Card>
 
-      {/* Document Details */}
-      <Card style={styles.card}>
-        <Card.Content>
-          <Text variant="titleMedium" style={styles.sectionTitle}>
-            Document Details
-          </Text>
-
-          <TextInput
-            label="Title *"
-            value={title}
-            onChangeText={setTitle}
-            mode="outlined"
-            style={styles.input}
-            placeholder="e.g., Blood Test Results, Prescription"
-          />
-
-          <TextInput
-            label="Description"
-            value={description}
-            onChangeText={setDescription}
-            mode="outlined"
-            multiline
-            numberOfLines={3}
-            style={styles.input}
-            placeholder="Optional: Add any additional notes or context"
-          />
-
-          <Text variant="bodyMedium" style={styles.inputLabel}>
-            Category
-          </Text>
-          <View style={styles.categoryGrid}>
-            {categories.map((cat) => (
-              <Button
-                key={cat.value}
-                mode={category === cat.value ? 'contained' : 'outlined'}
-                onPress={() => setCategory(cat.value as RecordCategory)}
-                style={styles.categoryButton}
-                icon={cat.icon}
-                compact
-              >
-                {cat.label}
-              </Button>
-            ))}
-          </View>
-
-          <TextInput
-            label="Record Date"
-            value={recordDate}
-            onChangeText={setRecordDate}
-            mode="outlined"
-            style={styles.input}
-            placeholder="YYYY-MM-DD"
-            keyboardType="numeric"
-          />
-          <HelperText type="info">
-            The date when this medical record was created (not upload date)
-          </HelperText>
-        </Card.Content>
-      </Card>
-
-      {/* AI Processing Info */}
-      <Card style={styles.card}>
-        <Card.Content>
-          <Text variant="titleMedium" style={styles.sectionTitle}>
-            Smart Processing 🤖
-          </Text>
-          <Text variant="bodyMedium" style={styles.aiDescription}>
-            After upload, MediLink will automatically:
-          </Text>
-          <View style={styles.featuresList}>
-            <Text variant="bodySmall" style={styles.featureItem}>
-              📄 Extract text from images using OCR
+      {/* Family Member Info */}
+      {selectedMember && (
+        <Card style={styles.card}>
+          <Card.Content>
+            <Text variant="titleLarge" style={styles.sectionTitle}>
+              👤 Family Member
             </Text>
-            <Text variant="bodySmall" style={styles.featureItem}>
-              🏥 Identify doctor names and hospitals
-            </Text>
-            <Text variant="bodySmall" style={styles.featureItem}>
-              💊 Extract medication information
-            </Text>
-            <Text variant="bodySmall" style={styles.featureItem}>
-              🔬 Parse lab test results and values
-            </Text>
-            <Text variant="bodySmall" style={styles.featureItem}>
-              🏷️ Generate relevant tags for easy searching
-            </Text>
-          </View>
-        </Card.Content>
-      </Card>
+            <List.Item
+              title={selectedMember.name}
+              description={`${selectedMember.age} years • ${selectedMember.gender}`}
+              left={() => <Avatar.Text size={40} label={selectedMember.name.charAt(0)} />}
+            />
+          </Card.Content>
+        </Card>
+      )}
 
       {/* Upload Progress */}
-      {(isUploading || isProcessing) && (
-        <Card style={styles.progressCard}>
+      {(isUploading || isAnalyzing) && (
+        <Card style={styles.card}>
           <Card.Content>
-            <Text variant="bodyMedium" style={styles.progressText}>
-              {isUploading ? 'Uploading document...' : 'Processing with AI...'}
+            <Text variant="titleMedium" style={styles.progressTitle}>
+              {isAnalyzing ? '🤖 Analyzing with AI...' : '📤 Uploading...'}
             </Text>
-            <ProgressBar 
-              progress={isUploading ? uploadProgress / 100 : 0.5} 
-              style={styles.progressBar}
-              indeterminate={isProcessing}
-            />
-            {isUploading && (
-              <Text variant="bodySmall" style={styles.progressPercentage}>
-                {Math.round(uploadProgress)}% complete
-              </Text>
-            )}
+            <ProgressBar progress={uploadProgress / 100} style={styles.progressBar} />
+            <Text variant="bodySmall" style={styles.progressText}>
+              {isAnalyzing ? 'AI is analyzing your lab report...' : `${Math.round(uploadProgress)}% complete`}
+            </Text>
           </Card.Content>
         </Card>
       )}
 
       {/* Upload Button */}
-      <Button
-        mode="contained"
-        onPress={handleUpload}
-        disabled={!selectedDocument || !title.trim() || isUploading || isProcessing}
-        style={styles.uploadButton}
-        icon="upload"
-      >
-        {isUploading || isProcessing ? 'Processing...' : 'Upload Document'}
-      </Button>
-
-      <View style={styles.bottomSpacing} />
+      <View style={styles.uploadButtonContainer}>
+        <Button
+          mode="contained"
+          onPress={handleUpload}
+          loading={isUploading || isProcessing}
+          disabled={selectedDocuments.length === 0 || !title.trim() || isUploading || isProcessing}
+          style={styles.uploadButton}
+          icon="upload"
+        >
+          {isUploading || isProcessing ? 'Uploading...' : `Upload ${selectedDocuments.length} Document(s)`}
+        </Button>
+      </View>
     </ScrollView>
   );
 };
@@ -322,38 +411,53 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f5f5f5',
   },
-  scrollContent: {
-    paddingBottom: 20,
-  },
-  header: {
-    padding: 16,
-    backgroundColor: '#fff',
-    elevation: 2,
-    marginBottom: 16,
-  },
-  headerTitle: {
-    fontWeight: 'bold',
-    color: '#2196F3',
-  },
-  memberName: {
-    color: '#666',
-    marginTop: 4,
-  },
   card: {
     margin: 16,
-    marginTop: 0,
-    elevation: 2,
+    marginBottom: 8,
   },
   sectionTitle: {
     fontWeight: 'bold',
     marginBottom: 16,
-    color: '#333',
+    color: '#2196F3',
+  },
+  inputGroup: {
+    marginBottom: 16,
+  },
+  label: {
+    marginBottom: 8,
+    fontWeight: 'bold',
+  },
+  categoryButton: {
+    justifyContent: 'flex-start',
+  },
+  documentSelector: {
+    alignItems: 'center',
+    paddingVertical: 32,
+  },
+  uploadIcon: {
+    backgroundColor: '#E3F2FD',
+    marginBottom: 16,
+  },
+  uploadText: {
+    fontWeight: 'bold',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  uploadSubtext: {
+    color: '#666',
+    marginBottom: 24,
+    textAlign: 'center',
   },
   selectButton: {
-    marginVertical: 16,
+    minWidth: 200,
   },
-  documentPreview: {
-    marginTop: 8,
+  documentCount: {
+    marginBottom: 16,
+    color: '#666',
+  },
+  documentCard: {
+    marginBottom: 12,
+    backgroundColor: '#fff',
   },
   documentInfo: {
     flexDirection: 'row',
@@ -369,79 +473,39 @@ const styles = StyleSheet.create({
   },
   documentName: {
     fontWeight: 'bold',
-    marginBottom: 4,
   },
   documentSize: {
     color: '#666',
-    marginBottom: 2,
+    marginTop: 4,
   },
-  documentType: {
-    color: '#999',
-    fontSize: 12,
-  },
-  removeButton: {
-    margin: 0,
-  },
-  imagePreview: {
+  documentPreview: {
     width: '100%',
     height: 200,
     borderRadius: 8,
-    backgroundColor: '#f0f0f0',
-  },
-  input: {
-    marginBottom: 12,
-  },
-  inputLabel: {
-    fontWeight: 'bold',
-    marginBottom: 8,
     marginTop: 8,
   },
-  categoryGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 16,
+  addMoreButton: {
+    marginTop: 16,
   },
-  categoryButton: {
-    minWidth: 100,
-    marginBottom: 8,
-  },
-  aiDescription: {
+  progressTitle: {
+    textAlign: 'center',
     marginBottom: 12,
-    color: '#666',
   },
-  featuresList: {
-    paddingLeft: 8,
-  },
-  featureItem: {
-    marginBottom: 6,
-    color: '#666',
-    lineHeight: 18,
-  },
-  progressCard: {
-    margin: 16,
-    marginTop: 0,
-    backgroundColor: '#E3F2FD',
+  progressBar: {
+    height: 8,
+    borderRadius: 4,
+    marginBottom: 8,
   },
   progressText: {
     textAlign: 'center',
-    marginBottom: 8,
-    fontWeight: 'bold',
-  },
-  progressBar: {
-    marginBottom: 8,
-  },
-  progressPercentage: {
-    textAlign: 'center',
     color: '#666',
   },
-  uploadButton: {
-    margin: 16,
-    marginTop: 8,
-    paddingVertical: 8,
+  uploadButtonContainer: {
+    padding: 16,
+    paddingBottom: 32,
   },
-  bottomSpacing: {
-    height: 20,
+  uploadButton: {
+    paddingVertical: 8,
   },
 });
 

@@ -33,9 +33,9 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
 
   const { signIn, signInWithPhone, confirmPhoneNumber } = useAuth();
 
-  const validateEmail = (email: string) => {
+  const validateEmail = (emailAddress: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
+    return emailRegex.test(emailAddress);
   };
 
   const handleEmailLogin = async () => {
