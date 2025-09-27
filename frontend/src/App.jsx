@@ -9,7 +9,9 @@ import AddFamilyMember from './components/family/AddFamilyMember';
 import FamilyMemberDetails from './components/family/FamilyMemberDetails';
 import EditFamilyMember from './components/family/EditFamilyMember';
 import AddMedicalRecord from './components/medical/AddMedicalRecord';
+import AddMedicalRecordTest from './components/medical/AddMedicalRecordTest';
 import MedicalRecords from './components/medical/MedicalRecords';
+import AIAnalysisPageSimple from './pages/AIAnalysisPageSimple';
 
 // Protected Route component
 const ProtectedRoute = ({ children }) => {
@@ -94,6 +96,11 @@ function App() {
             <Route path="/family-member/:id/records" element={
               <ProtectedRoute>
                 <MedicalRecords />
+              </ProtectedRoute>
+            } />
+            <Route path="/ai-analysis" element={
+              <ProtectedRoute>
+                <AIAnalysisPageSimple />
               </ProtectedRoute>
             } />
           </Routes>

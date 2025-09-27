@@ -107,6 +107,7 @@ export const initDatabase = () => {
       file_path TEXT NOT NULL,
       file_type TEXT,
       file_size INTEGER,
+      document_type TEXT DEFAULT 'Others',
       description TEXT,
       uploaded_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (record_id) REFERENCES medical_records (id) ON DELETE CASCADE
@@ -118,6 +119,64 @@ export const initDatabase = () => {
       console.error('Error creating medical_documents table:', err.message);
     } else {
       console.log('✅ Medical documents table ready (preserving existing data)');
+    }
+  });
+
+  // Create document_ocr_text table for extracted text
+  const createDocumentOcrTextTable = `
+    CREATE TABLE IF NOT EXISTS document_ocr_text (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      document_id INTEGER NOT NULL,
+      extracted_text TEXT,
+      confidence_score DECIMAL(3,2),
+      processing_status TEXT DEFAULT 'pending',
+      error_message TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (document_id) REFERENCES medical_documents (id) ON DELETE CASCADE
+    )
+  `;
+
+  db.run(createDocumentOcrTextTable, (err) => {
+    if (err) {
+      console.error('Error creating document_ocr_text table:', err.message);
+    } else {
+      console.log('✅ Document OCR text table ready');
+    }
+  });
+
+  // Create ai_analysis_results table for Gemini AI insights
+  const createAiAnalysisResultsTable = `
+    CREATE TABLE IF NOT EXISTS ai_analysis_results (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      document_id INTEGER,
+      family_member_id INTEGER,
+      analysis_type TEXT NOT NULL,
+      input_text TEXT,
+      ai_response TEXT,
+      key_findings TEXT,
+      recommendations TEXT,
+      analysis_timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+      date_range_start DATE,
+      date_range_end DATE,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (document_id) REFERENCES medical_documents (id) ON DELETE CASCADE,
+      FOREIGN KEY (family_member_id) REFERENCES family_members (id) ON DELETE CASCADE
+    )
+  `;
+
+  db.run(createAiAnalysisResultsTable, (err) => {
+    if (err) {
+      console.error('Error creating ai_analysis_results table:', err.message);
+    } else {
+      console.log('✅ AI analysis results table ready');
+    }
+  });
+
+  // Add document_type column to existing medical_documents if it doesn't exist
+  db.run(`ALTER TABLE medical_documents ADD COLUMN document_type TEXT DEFAULT 'Others'`, (err) => {
+    if (err && !err.message.includes('duplicate column name')) {
+      console.error('Error adding document_type column:', err.message);
     }
   });
 };

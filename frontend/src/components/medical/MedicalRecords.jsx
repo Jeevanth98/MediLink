@@ -263,6 +263,14 @@ const MedicalRecords = () => {
                             >
                               👁️ View Details
                             </button>
+                            {record.files && record.files.length > 0 && (
+                              <Link
+                                to={`/ai-analysis?recordId=${record.id}&familyMemberId=${familyMemberId}`}
+                                className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-4 py-2 rounded-lg hover:from-purple-700 hover:to-indigo-700 transition-all text-sm font-bold border-2 border-transparent"
+                              >
+                                🧠 AI Analysis
+                              </Link>
+                            )}
                           </div>
                         </div>
                       </div>

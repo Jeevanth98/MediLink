@@ -25,6 +25,14 @@ const AddMedicalRecord = () => {
   const [files, setFiles] = useState([]);
   const [fileErrors, setFileErrors] = useState([]);
 
+  const documentTypeOptions = [
+    'Lab Report',
+    'Prescription',
+    'Medical Imaging (X-ray, MRI, etc.)',
+    'Doctor\'s Notes',
+    'Others'
+  ];
+
   const recordTypeOptions = [
     'Consultation',
     'Lab Test',
@@ -89,7 +97,12 @@ const AddMedicalRecord = () => {
       } else if (file.size > maxFileSize) {
         errors.push(`File ${file.name}: File size exceeds 5MB limit.`);
       } else {
-        validFiles.push(file);
+        // Create file object with document type
+        validFiles.push({
+          file: file,
+          documentType: 'Others', // Default type
+          id: Date.now() + index // Unique ID for tracking
+        });
         totalSize += file.size;
       }
     });
@@ -102,6 +115,20 @@ const AddMedicalRecord = () => {
     }
     
     setFileErrors(errors);
+  };
+
+  const updateFileDocumentType = (fileId, documentType) => {
+    setFiles(prevFiles => 
+      prevFiles.map(fileObj => 
+        fileObj.id === fileId 
+          ? { ...fileObj, documentType } 
+          : fileObj
+      )
+    );
+  };
+
+  const removeFile = (fileId) => {
+    setFiles(prevFiles => prevFiles.filter(fileObj => fileObj.id !== fileId));
   };
 
   const handleSubmit = async (e) => {
@@ -145,9 +172,15 @@ const AddMedicalRecord = () => {
       formDataToSend.append('notes', formData.notes || '');
       formDataToSend.append('follow_up_date', formData.follow_up_date || '');
       
-      // Add files
-      files.forEach((file) => {
-        formDataToSend.append('medical_files', file);
+      // Add files and document types
+      files.forEach((fileObj) => {
+        formDataToSend.append('medical_files', fileObj.file);
+      });
+      
+      // Add document types array
+      const documentTypes = files.map(fileObj => fileObj.documentType);
+      documentTypes.forEach((docType) => {
+        formDataToSend.append('document_types', docType);
       });
 
       const response = await apiClient.post('/medical-records', formDataToSend, {
@@ -437,34 +470,47 @@ const AddMedicalRecord = () => {
             {files.length > 0 && (
               <div className="bg-green-50 border border-green-200 rounded-xl p-4">
                 <h4 className="text-sm font-medium text-green-800 mb-3">Selected Files ({files.length}):</h4>
-                <div className="space-y-2">
-                  {files.map((file, index) => (
-                    <div key={index} className="flex items-center justify-between p-2 bg-white rounded-lg border">
-                      <div className="flex items-center space-x-3">
-                        <span className="text-lg">
-                          {file.type.includes('image') ? '�️' : file.type.includes('pdf') ? '�📄' : '📝'}
-                        </span>
-                        <div>
-                          <p className="text-sm font-medium text-gray-900">{file.name}</p>
-                          <p className="text-xs text-gray-500">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
+                <div className="space-y-3">
+                  {files.map((fileObj) => (
+                    <div key={fileObj.id} className="p-3 bg-white rounded-lg border">
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="flex items-center space-x-3">
+                          <span className="text-lg">📄</span>
+                          <div>
+                            <p className="text-sm font-medium text-gray-900">{fileObj.file.name}</p>
+                            <p className="text-xs text-gray-500">{(fileObj.file.size / 1024 / 1024).toFixed(2)} MB</p>
+                          </div>
                         </div>
+                        <button
+                          type="button"
+                          onClick={() => removeFile(fileObj.id)}
+                          className="text-red-500 hover:text-red-700 p-1"
+                        >
+                          Remove
+                        </button>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const newFiles = files.filter((_, i) => i !== index);
-                          setFiles(newFiles);
-                          setFileErrors([]);
-                        }}
-                        className="text-red-500 hover:text-red-700 p-1"
-                      >
-                        ❌
-                      </button>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">
+                          Document Type *
+                        </label>
+                        <select
+                          value={fileObj.documentType}
+                          onChange={(e) => updateFileDocumentType(fileObj.id, e.target.value)}
+                          className="w-full text-xs border border-gray-300 rounded px-2 py-1 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          required
+                        >
+                          {documentTypeOptions.map((type) => (
+                            <option key={type} value={type}>
+                              {type}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
                     </div>
                   ))}
                 </div>
                 <div className="mt-3 text-xs text-green-700">
-                  <p>Total size: {(files.reduce((acc, file) => acc + file.size, 0) / 1024 / 1024).toFixed(2)} MB / 10 MB</p>
+                  <p>Total size: {(files.reduce((acc, fileObj) => acc + fileObj.file.size, 0) / 1024 / 1024).toFixed(2)} MB / 10 MB</p>
                 </div>
               </div>
             )}

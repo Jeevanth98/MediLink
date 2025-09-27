@@ -36,7 +36,7 @@ router.get('/family-member/:familyMemberId', authenticateToken, (req, res) => {
       const getRecordsQuery = `
         SELECT mr.*, 
                md.id as doc_id, md.filename, md.original_filename, 
-               md.file_type, md.file_size, md.description as file_description
+               md.file_type, md.file_size, md.document_type, md.description as file_description
         FROM medical_records mr
         LEFT JOIN medical_documents md ON mr.id = md.record_id
         WHERE mr.family_member_id = ? 
@@ -76,6 +76,7 @@ router.get('/family-member/:familyMemberId', authenticateToken, (req, res) => {
               original_filename: row.original_filename,
               file_type: row.file_type,
               file_size: row.file_size,
+              document_type: row.document_type,
               description: row.file_description,
               url: getFileUrl(row.filename)
             });
@@ -104,7 +105,7 @@ router.get('/:recordId', authenticateToken, (req, res) => {
     const getRecordQuery = `
       SELECT mr.*, fm.name as family_member_name,
              md.id as doc_id, md.filename, md.original_filename, 
-             md.file_type, md.file_size, md.description as file_description
+             md.file_type, md.file_size, md.document_type, md.description as file_description
       FROM medical_records mr
       JOIN family_members fm ON mr.family_member_id = fm.id
       LEFT JOIN medical_documents md ON mr.id = md.record_id
@@ -132,6 +133,7 @@ router.get('/:recordId', authenticateToken, (req, res) => {
             original_filename: row.original_filename,
             file_type: row.file_type,
             file_size: row.file_size,
+            document_type: row.document_type,
             description: row.file_description,
             url: getFileUrl(row.filename)
           }))
@@ -179,7 +181,8 @@ router.post('/', authenticateToken, uploadMedicalFiles, (req, res) => {
       treatment,
       medications,
       notes,
-      follow_up_date
+      follow_up_date,
+      document_types // Array of document types corresponding to uploaded files
     } = req.body;
 
     console.log('Creating medical record with data:', req.body);
@@ -270,14 +273,20 @@ router.post('/', authenticateToken, uploadMedicalFiles, (req, res) => {
 
         // Insert file records if files were uploaded
         if (req.files && req.files.length > 0) {
-          const fileInserts = req.files.map(file => {
+          const fileInserts = req.files.map((file, index) => {
             return new Promise((resolve, reject) => {
               const fileQuery = `
                 INSERT INTO medical_documents (
                   record_id, filename, original_filename, file_path, 
-                  file_type, file_size, description
-                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                  file_type, file_size, document_type, description
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
               `;
+              
+              // Get document type for this file (default to 'Others' if not provided)
+              const documentTypes = Array.isArray(req.body.document_types) 
+                ? req.body.document_types 
+                : (req.body.document_types ? [req.body.document_types] : []);
+              const documentType = documentTypes[index] || 'Others';
               
               db.run(fileQuery, [
                 recordId,
@@ -286,6 +295,7 @@ router.post('/', authenticateToken, uploadMedicalFiles, (req, res) => {
                 file.path,
                 file.mimetype,
                 file.size,
+                documentType,
                 `Uploaded document: ${file.originalname}`
               ], function(fileErr) {
                 if (fileErr) {
@@ -715,7 +725,7 @@ const fetchRecordWithFiles = (recordId, familyMemberName, res) => {
   const recordQuery = `
     SELECT mr.*, 
            md.id as doc_id, md.filename, md.original_filename, 
-           md.file_type, md.file_size, md.description as file_description
+           md.file_type, md.file_size, md.document_type, md.description as file_description
     FROM medical_records mr
     LEFT JOIN medical_documents md ON mr.id = md.record_id
     WHERE mr.id = ?
@@ -743,6 +753,7 @@ const fetchRecordWithFiles = (recordId, familyMemberName, res) => {
           original_filename: row.original_filename,
           file_type: row.file_type,
           file_size: row.file_size,
+          document_type: row.document_type,
           description: row.file_description,
           url: getFileUrl(row.filename)
         }))

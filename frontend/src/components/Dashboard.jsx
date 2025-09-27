@@ -154,48 +154,60 @@ const Dashboard = () => {
           )}
         </div>
 
+        {/* AI Analysis Section */}
+        <div className="bg-white rounded-2xl shadow-medical border border-medical-light/20 p-6 mb-6">
+          <div className="flex justify-between items-center mb-4">
+            <div>
+              <h3 className="text-lg font-bold text-medical-dark flex items-center">
+                <span className="medical-icon-sm mr-2">🤖</span>
+                AI Medical Analysis
+              </h3>
+              <p className="text-xs text-medical-text">Analyze medical documents and generate health summaries</p>
+            </div>
+            <Link
+              to="/ai-analysis"
+              className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-4 py-2 rounded-lg hover:from-purple-700 hover:to-indigo-700 transition-all text-sm font-medium shadow-lg"
+            >
+              🧠 Start Analysis
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="flex items-start space-x-3 p-4 bg-gradient-to-r from-purple-50 to-indigo-50 rounded-xl border border-purple-100">
+              <div className="text-2xl">�</div>
+              <div>
+                <h4 className="font-semibold text-medical-dark text-sm">Document Analysis</h4>
+                <p className="text-xs text-medical-text">Get AI-powered insights from lab reports, prescriptions, and medical images</p>
+              </div>
+            </div>
+
+            <div className="flex items-start space-x-3 p-4 bg-gradient-to-r from-green-50 to-teal-50 rounded-xl border border-green-100">
+              <div className="text-2xl">�</div>
+              <div>
+                <h4 className="font-semibold text-medical-dark text-sm">Health Summaries</h4>
+                <p className="text-xs text-medical-text">Generate comprehensive health reports for family members</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-4 p-3 bg-gradient-to-r from-blue-50 to-cyan-50 rounded-lg border border-blue-100">
+            <p className="text-xs text-blue-800 flex items-center">
+              <span className="mr-2">ℹ️</span>
+              <span>Powered by Google Cloud Vision API and Gemini AI for accurate medical document analysis</span>
+            </p>
+          </div>
+        </div>
+
         {/* Coming Soon Features */}
         <div className="bg-white rounded-2xl shadow-medical border border-medical-light/20 p-6 mb-6">
           <div className="text-center mb-4">
             <div className="medical-icon-sm mb-2">🚀</div>
             <h3 className="text-lg font-bold text-medical-dark">
-              Coming Soon Features
+              Additional Features Coming Soon
             </h3>
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="flex items-start space-x-3 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-100">
-              <div className="text-2xl">👨‍👩‍👧‍👦</div>
-              <div>
-                <h4 className="font-semibold text-medical-dark text-sm">Family Member Management</h4>
-                <p className="text-xs text-medical-text">Add and manage medical records for your family members</p>
-              </div>
-            </div>
-
-            <div className="flex items-start space-x-3 p-4 bg-gradient-to-r from-green-50 to-teal-50 rounded-xl border border-green-100">
-              <div className="text-2xl">📄</div>
-              <div>
-                <h4 className="font-semibold text-medical-dark text-sm">Document Upload</h4>
-                <p className="text-xs text-medical-text">Upload and organize medical documents with AI categorization</p>
-              </div>
-            </div>
-
-            <div className="flex items-start space-x-3 p-4 bg-gradient-to-r from-yellow-50 to-orange-50 rounded-xl border border-yellow-100">
-              <div className="text-2xl">🔍</div>
-              <div>
-                <h4 className="font-semibold text-medical-dark text-sm">OCR Text Extraction</h4>
-                <p className="text-xs text-medical-text">Extract text from medical documents automatically</p>
-              </div>
-            </div>
-
-            <div className="flex items-start space-x-3 p-4 bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl border border-purple-100">
-              <div className="text-2xl">🤖</div>
-              <div>
-                <h4 className="font-semibold text-medical-dark text-sm">AI Medical Insights</h4>
-                <p className="text-xs text-medical-text">Get simple explanations of your medical reports</p>
-              </div>
-            </div>
-
             <div className="flex items-start space-x-3 p-4 bg-gradient-to-r from-red-50 to-rose-50 rounded-xl border border-red-100">
               <div className="text-2xl">💊</div>
               <div>
@@ -207,8 +219,8 @@ const Dashboard = () => {
             <div className="flex items-start space-x-3 p-4 bg-gradient-to-r from-cyan-50 to-sky-50 rounded-xl border border-cyan-100">
               <div className="text-2xl">🚨</div>
               <div>
-                <h4 className="font-semibold text-medical-dark text-sm">Emergency Summary</h4>
-                <p className="text-xs text-medical-text">Generate comprehensive health summaries for emergencies</p>
+                <h4 className="font-semibold text-medical-dark text-sm">Emergency Contact System</h4>
+                <p className="text-xs text-medical-text">Quick access to emergency contacts and critical health information</p>
               </div>
             </div>
           </div>
@@ -216,16 +228,18 @@ const Dashboard = () => {
 
         {/* Get Started */}
         <div className="bg-gradient-to-r from-medical-primary to-medical-secondary rounded-2xl shadow-medical p-6 text-center text-white">
-          <div className="medical-icon-sm mb-3">✅</div>
+          <div className="medical-icon-sm mb-3">🎉</div>
           <h3 className="font-bold text-lg mb-2">
-            Module 1 Complete!
+            Module 3 Complete!
           </h3>
           <p className="text-white/90 text-sm mb-4">
-            User Management System is now fully functional with authentication, profile management, and secure data storage.
+            AI Medical Analysis System is now fully functional with OCR text extraction, document analysis, and health summary generation using Google Cloud Vision and Gemini AI.
           </p>
-          <p className="text-white/80 text-xs">
-            Ready to implement the next module? All the exciting features above are coming soon! 🚀
-          </p>
+          <div className="flex justify-center space-x-4 text-xs text-white/80">
+            <span>✅ User Management</span>
+            <span>✅ Family Records</span>
+            <span>✅ AI Analysis</span>
+          </div>
         </div>
       </main>
     </div>

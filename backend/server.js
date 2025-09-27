@@ -6,6 +6,7 @@ import authRoutes from './routes/auth.js';
 import familyMembersRoutes from './routes/familyMembers.js';
 import medicalRecordsRoutes from './routes/medicalRecords.js';
 import filesRoutes from './routes/files.js';
+import aiAnalysisRoutes from './routes/aiAnalysis.js';
 
 dotenv.config();
 
@@ -27,6 +28,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/family-members', familyMembersRoutes);
 app.use('/api/medical-records', medicalRecordsRoutes);
 app.use('/api/files', filesRoutes);
+app.use('/api/ai', aiAnalysisRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

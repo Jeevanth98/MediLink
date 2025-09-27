@@ -10,18 +10,42 @@ const MedicalRecordModal = ({ record, isOpen, onClose }) => {
     if (isOpen && record && images.length > 0) {
       const createAuthenticatedUrls = async () => {
         const token = localStorage.getItem('token');
-        if (!token) return;
+        if (!token) {
+          console.log('No token available for image authentication');
+          return;
+        }
 
+        console.log('Creating authenticated URLs for', images.length, 'images');
+        
         const urlPromises = images.map(async (image) => {
           try {
+            console.log('Fetching image:', image.original_filename, 'URL:', image.url);
+            
+            // Try direct authenticated fetch first
             const response = await fetch(image.url, {
-              headers: { 'Authorization': `Bearer ${token}` }
+              headers: { 
+                'Authorization': `Bearer ${token}`,
+                'Accept': 'image/*'
+              }
             });
+            
+            if (!response.ok) {
+              console.error('Failed to fetch image:', response.status, response.statusText);
+              // Fallback to direct viewer URL using filename directly
+              const filename = image.filename;
+              const viewerUrl = `http://localhost:5000/api/files/medical-records/${filename}?token=${token}`;
+              return { id: image.id, url: viewerUrl };
+            }
+            
             const blob = await response.blob();
+            console.log('Image blob created, size:', blob.size, 'type:', blob.type);
             return { id: image.id, url: window.URL.createObjectURL(blob) };
           } catch (error) {
-            console.error('Error creating authenticated URL for image:', error);
-            return { id: image.id, url: null };
+            console.error('Error creating authenticated URL for image:', image.original_filename, error);
+            // Fallback to direct viewer URL using filename directly
+            const filename = image.filename;
+            const viewerUrl = `http://localhost:5000/api/files/medical-records/${filename}?token=${token}`;
+            return { id: image.id, url: viewerUrl };
           }
         });
 
@@ -32,6 +56,7 @@ const MedicalRecordModal = ({ record, isOpen, onClose }) => {
             urlMap[result.id] = result.url;
           }
         });
+        console.log('Authenticated URLs created:', Object.keys(urlMap).length, 'successful');
         setAuthenticatedImageUrls(urlMap);
       };
 
@@ -41,7 +66,10 @@ const MedicalRecordModal = ({ record, isOpen, onClose }) => {
     // Cleanup URLs when modal closes
     return () => {
       Object.values(authenticatedImageUrls).forEach(url => {
-        if (url) window.URL.revokeObjectURL(url);
+        if (url && url.startsWith('blob:')) {
+          console.log('Cleaning up blob URL');
+          window.URL.revokeObjectURL(url);
+        }
       });
       if (!isOpen) {
         setAuthenticatedImageUrls({});
@@ -77,6 +105,67 @@ const MedicalRecordModal = ({ record, isOpen, onClose }) => {
     setIsImageViewerOpen(true);
   };
 
+  const openImageInNewTab = (image) => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      alert('Please log in to view images');
+      return;
+    }
+    
+    const filename = image.filename;
+    const viewerUrl = `http://localhost:5000/api/files/view/${filename}?token=${token}`;
+    window.open(viewerUrl, '_blank', 'width=800,height=600,scrollbars=yes,resizable=yes');
+  };
+
+  const analyzeDocument = async (file) => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      alert('Please log in to analyze documents');
+      return;
+    }
+
+    try {
+      const response = await fetch(`http://localhost:5000/api/ai/analyze/document/${file.id}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        // Open the analysis result in a new window/modal
+        const analysisWindow = window.open('', '_blank', 'width=800,height=600,scrollbars=yes,resizable=yes');
+        analysisWindow.document.write(`
+          <html>
+            <head>
+              <title>AI Analysis - ${file.original_filename}</title>
+              <style>
+                body { font-family: Arial, sans-serif; padding: 20px; line-height: 1.6; }
+                h1 { color: #2563eb; }
+                pre { background: #f3f4f6; padding: 15px; border-radius: 8px; white-space: pre-wrap; }
+              </style>
+            </head>
+            <body>
+              <h1>AI Analysis Results</h1>
+              <p><strong>Document:</strong> ${file.original_filename}</p>
+              <p><strong>Analysis Date:</strong> ${new Date().toLocaleString()}</p>
+              <hr>
+              <pre>${data.analysis.aiAnalysis.fullAnalysis}</pre>
+            </body>
+          </html>
+        `);
+      } else {
+        alert(`Analysis failed: ${data.error}`);
+      }
+    } catch (error) {
+      console.error('Document analysis error:', error);
+      alert('Failed to analyze document');
+    }
+  };
+
   const closeImageViewer = () => {
     setIsImageViewerOpen(false);
   };
@@ -91,63 +180,46 @@ const MedicalRecordModal = ({ record, isOpen, onClose }) => {
 
   const handleDownload = async (file) => {
     try {
-      // For PDFs and images, open in new tab for viewing
-      if (file.file_type === 'application/pdf' || file.file_type.startsWith('image/')) {
-        // Get the auth token from localStorage
-        const token = localStorage.getItem('token');
-        if (!token) {
-          alert('Please log in to view files');
-          return;
-        }
-
-        // Create a new window with the file URL and auth headers
-        const newWindow = window.open('', '_blank');
-        if (!newWindow) {
-          alert('Please allow popups to view files');
-          return;
-        }
-
-        try {
-          // Fetch the file with authentication
-          const response = await fetch(file.url, {
-            method: 'GET',
-            headers: {
-              'Authorization': `Bearer ${token}`
-            }
-          });
-
-          if (!response.ok) {
-            throw new Error(`Failed to load file: ${response.status}`);
-          }
-
-          const blob = await response.blob();
-          const blobUrl = window.URL.createObjectURL(blob);
-          
-          // Navigate the new window to the blob URL
-          newWindow.location = blobUrl;
-          
-          // Clean up after a delay
-          setTimeout(() => {
-            window.URL.revokeObjectURL(blobUrl);
-          }, 60000); // Clean up after 1 minute
-
-        } catch (error) {
-          newWindow.close();
-          throw error;
-        }
-
-        return;
-      }
-
-      // For other file types, force download
+      console.log('Handling file:', file.original_filename, 'Type:', file.file_type);
+      
+      // Get the auth token from localStorage
       const token = localStorage.getItem('token');
       if (!token) {
-        alert('Please log in to download files');
+        alert('Please log in to access files');
         return;
       }
 
+      // For PDFs and images, use the new direct viewer route
+      if (file.file_type === 'application/pdf') {
+        console.log('Opening PDF with direct viewer:', file.original_filename);
+        // Use filename directly from database
+        const filename = file.filename;
+        const viewerUrl = `http://localhost:5000/api/files/view/${filename}?token=${token}`;
+        
+        const newWindow = window.open(viewerUrl, '_blank', 'width=1000,height=700,scrollbars=yes,resizable=yes');
+        if (!newWindow) {
+          alert('Please allow popups to view PDFs');
+        }
+        return;
+      }
+
+      // For images, also use the direct viewer
+      if (file.file_type.includes('image')) {
+        console.log('Opening image with direct viewer:', file.original_filename);
+        // Use filename directly from database
+        const filename = file.filename;
+        const viewerUrl = `http://localhost:5000/api/files/view/${filename}?token=${token}`;
+        console.log('Generated viewer URL:', viewerUrl);
+        
+        const newWindow = window.open(viewerUrl, '_blank', 'width=800,height=600,scrollbars=yes,resizable=yes');
+        if (!newWindow) {
+          alert('Please allow popups to view images');
+        }
+        return;
+      }
+
+      // For other file types, download normally
       console.log('Downloading file:', file.original_filename);
-      console.log('File URL:', file.url);
 
       // Fetch the file with authentication
       const response = await fetch(file.url, {
@@ -314,8 +386,23 @@ const MedicalRecordModal = ({ record, isOpen, onClose }) => {
                               e.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTEyIDJMMTMuMDkgOC4yNkwyMSA5TDEzLjA5IDE1Ljc0TDEyIDIyTDEwLjkxIDE1Ljc0TDMgOUwxMC45MSA4LjI2TDEyIDJaIiBzdHJva2U9IiNjY2MiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIi8+Cjwvc3ZnPg==';
                             }}
                           />
-                          <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 rounded-lg transition-all flex items-center justify-center">
-                            <span className="text-white opacity-0 group-hover:opacity-100 text-2xl">🔍</span>
+                          <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-40 rounded-lg transition-all flex items-center justify-center">
+                            <div className="opacity-0 group-hover:opacity-100 flex space-x-2">
+                              <button
+                                onClick={(e) => {e.stopPropagation(); openImageViewer(index);}}
+                                className="text-white text-lg bg-black bg-opacity-50 rounded-full p-1 hover:bg-opacity-70"
+                                title="View in modal"
+                              >
+                                🔍
+                              </button>
+                              <button
+                                onClick={(e) => {e.stopPropagation(); openImageInNewTab(image);}}
+                                className="text-white text-lg bg-black bg-opacity-50 rounded-full p-1 hover:bg-opacity-70"
+                                title="Open in new tab"
+                              >
+                                �
+                              </button>
+                            </div>
                           </div>
                           <p className="text-xs text-gray-600 mt-1 truncate" title={image.original_filename}>
                             {image.original_filename}
