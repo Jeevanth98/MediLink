@@ -248,16 +248,20 @@ const FamilyMemberDetails = () => {
             <div className="flex flex-wrap gap-4">
               <Link
                 to={`/family-member/${member.id}/add-record`}
-                className="bg-gradient-to-r from-green-500 to-green-600 text-white px-6 py-4 rounded-xl font-bold text-lg hover:shadow-xl transform hover:scale-105 transition-all border-2 border-green-500 hover:border-green-600"
+                className="flex-1 min-w-[250px] bg-white text-blue-600 px-6 py-4 rounded-xl font-bold text-base hover:shadow-xl transform hover:scale-105 transition-all flex items-center justify-center space-x-2 shadow-md border-2 border-blue-600"
+                style={{ textDecoration: 'none' }}
               >
-                ⚕️ Add Medical Record
+                <span className="text-2xl">⚕️</span>
+                <span>Add Medical Record</span>
               </Link>
               
               <Link
                 to={`/family-member/${member.id}/records`}
-                className="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-6 py-4 rounded-xl font-bold text-lg hover:shadow-xl transform hover:scale-105 transition-all border-2 border-blue-500 hover:border-blue-600"
+                className="flex-1 min-w-[250px] bg-white text-blue-600 px-6 py-4 rounded-xl font-bold text-base hover:shadow-xl transform hover:scale-105 transition-all flex items-center justify-center space-x-2 shadow-md border-2 border-blue-600"
+                style={{ textDecoration: 'none' }}
               >
-                📋 View Medical History
+                <span className="text-2xl">📋</span>
+                <span>View Medical History</span>
               </Link>
             </div>
           </div>
@@ -269,23 +273,6 @@ const FamilyMemberDetails = () => {
               {member.updated_at !== member.created_at && (
                 <span>Last updated {new Date(member.updated_at).toLocaleDateString()}</span>
               )}
-            </div>
-          </div>
-        </div>
-
-        {/* Medical Records Preview (Coming Soon) */}
-        <div className="bg-white rounded-2xl shadow-medical p-6">
-          <div className="text-center">
-            <h3 className="font-bold text-medical-dark text-lg mb-2">
-              Medical Records
-            </h3>
-            <p className="text-medical-text text-sm mb-4">
-              Medical records management is coming soon!
-            </p>
-            <div className="bg-gradient-to-r from-medical-primary to-medical-secondary text-white rounded-lg p-4">
-              <p className="text-sm">
-                Next features: Add medical records, upload documents, and track medical history for {member.name}
-              </p>
             </div>
           </div>
         </div>

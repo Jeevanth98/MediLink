@@ -46,13 +46,33 @@ const FamilyMemberCard = ({ member }) => {
       <div className="flex space-x-2">
         <Link
           to={`/family-member/${member.id}`}
-          className="flex-1 bg-medical-primary text-white text-sm font-medium py-3 px-4 rounded-lg hover:bg-medical-secondary transition-colors text-center"
+          className="flex-1 text-white text-sm font-medium py-3 px-4 rounded-lg transition-colors text-center"
+          style={{
+            background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+            textDecoration: 'none'
+          }}
+          onMouseOver={(e) => {
+            e.currentTarget.style.background = 'linear-gradient(135deg, #059669 0%, #047857 100%)';
+          }}
+          onMouseOut={(e) => {
+            e.currentTarget.style.background = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
+          }}
         >
           📋 View Details
         </Link>
         <Link
           to={`/family-member/${member.id}/add-record`}
-          className="flex-1 bg-green-500 text-white text-sm font-medium py-3 px-4 rounded-lg hover:bg-green-600 transition-colors text-center"
+          className="flex-1 text-white text-sm font-medium py-3 px-4 rounded-lg transition-colors text-center"
+          style={{
+            background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+            textDecoration: 'none'
+          }}
+          onMouseOver={(e) => {
+            e.currentTarget.style.background = 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)';
+          }}
+          onMouseOut={(e) => {
+            e.currentTarget.style.background = 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)';
+          }}
         >
           ➕ Add Record
         </Link>

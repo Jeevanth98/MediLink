@@ -1,0 +1,7 @@
+{
+  "dependencies": {
+    "canvas": "^3.2.0",
+    "form-data": "^4.0.4",
+    "node-fetch": "^2.7.0"
+  }
+}

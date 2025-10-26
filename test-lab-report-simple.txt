@@ -1,0 +1,17 @@
+COMPLETE BLOOD COUNT (CBC) TEST REPORT
+
+CITY DIAGNOSTIC CENTER
+Patient: Tharun S
+Age: 18 Years
+Date: October 26, 2025
+
+TEST RESULTS:
+--------------
+Hemoglobin: 12.8 g/dL (Normal: 13.5-17.5) - LOW
+RBC Count: 4.5 million/cumm (Normal: 4.5-5.5) - Normal
+WBC Count: 8500 cells/cumm (Normal: 4000-11000) - Normal
+Platelet Count: 180000 cells/cumm (Normal: 150000-410000) - Normal
+
+CLINICAL NOTES:
+Hemoglobin level is slightly below normal, suggesting mild anemia.
+Recommend iron-rich diet and follow-up in 4 weeks.

@@ -477,6 +477,11 @@ body {
   padding-right: env(safe-area-inset-right);
 }
 
+/* Remove underline from all links */
+a {
+  text-decoration: none;
+}
+
 /* Button styles with medical theme */
 button {
   cursor: pointer;

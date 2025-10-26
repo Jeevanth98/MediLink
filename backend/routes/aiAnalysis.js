@@ -28,7 +28,7 @@ router.get('/test', authenticateToken, (req, res) => {
 router.post('/analyze/document/:documentId', authenticateToken, async (req, res) => {
   try {
     const { documentId } = req.params;
-    const userId = req.user.id;
+    const userId = req.user.userId || req.user.id;
 
     console.log('🔍 Starting document analysis for document ID:', documentId);
 
@@ -197,7 +197,7 @@ router.post('/analyze/document/:documentId', authenticateToken, async (req, res)
 router.post('/analyze/health-summary', authenticateToken, async (req, res) => {
   try {
     const { familyMemberId, dateRange } = req.body;
-    const userId = req.user.id;
+    const userId = req.user.userId || req.user.id;
 
     console.log('🏥 Starting health summary generation for family member:', familyMemberId);
     console.log('Request body:', req.body);
@@ -342,7 +342,7 @@ router.post('/analyze/health-summary', authenticateToken, async (req, res) => {
 router.get('/analysis/history/:familyMemberId', authenticateToken, async (req, res) => {
   try {
     const { familyMemberId } = req.params;
-    const userId = req.user.id;
+    const userId = req.user.userId || req.user.id;
 
     // Verify family member ownership
     const familyMemberQuery = `
@@ -407,7 +407,7 @@ router.get('/analysis/history/:familyMemberId', authenticateToken, async (req, r
 router.delete('/analysis/:analysisId', authenticateToken, async (req, res) => {
   try {
     const { analysisId } = req.params;
-    const userId = req.user.id;
+    const userId = req.user.userId || req.user.id;
 
     // Verify ownership before deleting
     const verifyQuery = `

@@ -14,6 +14,8 @@ const MedicalRecords = () => {
   const [filterType, setFilterType] = useState('');
   const [selectedRecord, setSelectedRecord] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [analyzingRecordId, setAnalyzingRecordId] = useState(null);
+  const [analysisResults, setAnalysisResults] = useState({});
 
   const recordTypeOptions = [
     'Consultation', 'Lab Test', 'Imaging', 'Surgery', 'Prescription', 
@@ -99,6 +101,38 @@ const MedicalRecords = () => {
   const handleCloseModal = () => {
     setIsModalOpen(false);
     setSelectedRecord(null);
+  };
+
+  const handleAnalyzeRecord = async (record) => {
+    if (!record.files || record.files.length === 0) {
+      toast.error('No documents to analyze');
+      return;
+    }
+
+    setAnalyzingRecordId(record.id);
+
+    try {
+      // Analyze each document in the record
+      const analysisPromises = record.files.map(async (file) => {
+        const response = await apiClient.post(`/ai/analyze/document/${file.id}`);
+        return response.data;
+      });
+
+      const results = await Promise.all(analysisPromises);
+      
+      // Store analysis results for this record
+      setAnalysisResults(prev => ({
+        ...prev,
+        [record.id]: results
+      }));
+
+      toast.success('Analysis completed!');
+    } catch (error) {
+      console.error('Analysis error:', error);
+      toast.error(error.response?.data?.error || 'Failed to analyze documents');
+    } finally {
+      setAnalyzingRecordId(null);
+    }
   };
 
   if (loading) {
@@ -258,18 +292,31 @@ const MedicalRecords = () => {
                           </div>
                           <div className="flex space-x-2">
                             <button
-                              onClick={() => handleViewRecord(record)}
-                              className="bg-medical-primary text-white px-4 py-2 rounded-lg hover:bg-medical-secondary transition-colors text-sm font-bold border-2 border-medical-primary hover:border-medical-secondary"
+                              onClick={() => handleAnalyzeRecord(record)}
+                              disabled={analyzingRecordId === record.id || !record.files || record.files.length === 0}
+                              className={`${
+                                analyzingRecordId === record.id || !record.files || record.files.length === 0
+                                  ? 'bg-gray-300 cursor-not-allowed'
+                                  : 'bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700'
+                              } text-white px-6 py-3 rounded-xl transition-all text-sm font-bold shadow-lg border-2 border-purple-500 hover:border-purple-700 flex items-center space-x-2`}
                             >
-                              👁️ View Details
+                              {analyzingRecordId === record.id ? (
+                                <>
+                                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                                  <span>Analyzing...</span>
+                                </>
+                              ) : (
+                                <>
+                                  <span className="text-lg">🧠</span>
+                                  <span>Analyse</span>
+                                </>
+                              )}
                             </button>
                             {record.files && record.files.length > 0 && (
-                              <Link
-                                to={`/ai-analysis?recordId=${record.id}&familyMemberId=${familyMemberId}`}
-                                className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-4 py-2 rounded-lg hover:from-purple-700 hover:to-indigo-700 transition-all text-sm font-bold border-2 border-transparent"
-                              >
-                                🧠 AI Analysis
-                              </Link>
+                              <span className="bg-blue-100 px-4 py-3 rounded-xl text-blue-700 text-sm font-medium flex items-center space-x-2">
+                                <span>📎</span>
+                                <span>{record.files.length} file{record.files.length > 1 ? 's' : ''}</span>
+                              </span>
                             )}
                           </div>
                         </div>
@@ -363,6 +410,120 @@ const MedicalRecords = () => {
                           </span>
                         )}
                       </div>
+
+                      {/* AI Analysis Results */}
+                      {analysisResults[record.id] && (
+                        <div className="mt-6 pt-6 border-t-2 border-purple-200">
+                          <div className="flex items-center space-x-2 mb-4">
+                            <span className="text-2xl">🧠</span>
+                            <h4 className="font-bold text-purple-900 text-lg">AI Analysis Results</h4>
+                          </div>
+
+                          {analysisResults[record.id].map((result, index) => (
+                            <div key={index} className="mb-6">
+                              {result.success ? (
+                                <div className="space-y-4">
+                                  {/* Document Info */}
+                                  {record.files[index] && (
+                                    <div className="bg-gray-100 rounded-lg p-3">
+                                      <p className="text-sm font-semibold text-gray-700 flex items-center">
+                                        <span className="mr-2">📄</span>
+                                        {result.analysis.originalFilename}
+                                      </p>
+                                    </div>
+                                  )}
+
+                                  {/* Analysis Insights */}
+                                  <div className="bg-white rounded-xl p-5 shadow-md border border-gray-200">
+                                    <h5 className="font-bold text-gray-900 mb-4 text-base flex items-center border-b border-gray-200 pb-3">
+                                      <span className="mr-2 text-xl">📊</span>
+                                      Analysis Insights
+                                    </h5>
+                                    <div className="text-gray-700 leading-relaxed space-y-3">
+                                      {result.analysis.aiAnalysis.fullAnalysis.split('\n').map((line, i) => (
+                                        <p key={i} className="text-sm">{line}</p>
+                                      ))}
+                                    </div>
+                                  </div>
+
+                                  {/* Key Findings */}
+                                  {result.analysis.aiAnalysis.keyFindings && (
+                                    <div className="bg-green-50 rounded-xl p-5 border-2 border-green-200">
+                                      <h6 className="font-bold text-green-900 mb-3 text-sm flex items-center">
+                                        <span className="mr-2">✅</span>
+                                        Key Findings
+                                      </h6>
+                                      <div className="text-green-800 text-sm leading-relaxed space-y-2">
+                                        {result.analysis.aiAnalysis.keyFindings.split('\n').map((line, i) => (
+                                          <p key={i}>{line}</p>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {/* Recommendations */}
+                                  {result.analysis.aiAnalysis.recommendations && (
+                                    <div className="bg-blue-50 rounded-xl p-5 border-2 border-blue-200">
+                                      <h6 className="font-bold text-blue-900 mb-3 text-sm flex items-center">
+                                        <span className="mr-2">💡</span>
+                                        Recommendations
+                                      </h6>
+                                      <div className="text-blue-800 text-sm leading-relaxed space-y-2">
+                                        {result.analysis.aiAnalysis.recommendations.split('\n').map((line, i) => (
+                                          <p key={i}>{line}</p>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {/* OCR Accuracy */}
+                                  <div className="bg-gradient-to-r from-purple-50 to-indigo-50 rounded-xl p-5 border-2 border-purple-200">
+                                    <div className="flex items-center justify-between">
+                                      <div className="flex items-center space-x-3">
+                                        <span className="text-2xl">🔍</span>
+                                        <div>
+                                          <p className="font-bold text-gray-900 text-sm">OCR Extraction Accuracy</p>
+                                          <p className="text-xs text-gray-600 mt-1">
+                                            {result.analysis.ocrResults.textLength} characters extracted
+                                          </p>
+                                        </div>
+                                      </div>
+                                      <div className="text-right">
+                                        <div className={`text-3xl font-bold ${
+                                          result.analysis.ocrResults.confidence >= 0.8 ? 'text-green-600' :
+                                          result.analysis.ocrResults.confidence >= 0.6 ? 'text-yellow-600' :
+                                          'text-red-600'
+                                        }`}>
+                                          {(result.analysis.ocrResults.confidence * 100).toFixed(1)}%
+                                        </div>
+                                        <div className={`text-xs font-semibold mt-1 px-2 py-1 rounded ${
+                                          result.analysis.ocrResults.confidence >= 0.8 ? 'bg-green-100 text-green-700' :
+                                          result.analysis.ocrResults.confidence >= 0.6 ? 'bg-yellow-100 text-yellow-700' :
+                                          'bg-red-100 text-red-700'
+                                        }`}>
+                                          {result.analysis.ocrResults.confidence >= 0.8 ? 'Excellent' :
+                                           result.analysis.ocrResults.confidence >= 0.6 ? 'Good' :
+                                           'Fair'}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="bg-red-50 border-2 border-red-200 rounded-xl p-5">
+                                  <p className="text-red-800 font-bold flex items-center mb-2">
+                                    <span className="mr-2 text-xl">❌</span>
+                                    Analysis Failed
+                                  </p>
+                                  <p className="text-red-600 text-sm">
+                                    {result.error || 'An error occurred during analysis'}
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
