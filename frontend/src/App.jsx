@@ -12,6 +12,7 @@ import AddMedicalRecord from './components/medical/AddMedicalRecord';
 import AddMedicalRecordTest from './components/medical/AddMedicalRecordTest';
 import MedicalRecords from './components/medical/MedicalRecords';
 import AIAnalysisPageSimple from './pages/AIAnalysisPageSimple';
+import RemindersPage from './pages/RemindersPage';
 
 // Protected Route component
 const ProtectedRoute = ({ children }) => {
@@ -101,6 +102,11 @@ function App() {
             <Route path="/ai-analysis" element={
               <ProtectedRoute>
                 <AIAnalysisPageSimple />
+              </ProtectedRoute>
+            } />
+            <Route path="/reminders" element={
+              <ProtectedRoute>
+                <RemindersPage />
               </ProtectedRoute>
             } />
           </Routes>

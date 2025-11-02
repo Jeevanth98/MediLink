@@ -4,32 +4,66 @@ import { useAuth } from '../context/AuthContext';
 import FamilyMemberCard from './family/FamilyMemberCard';
 import { toast } from 'react-hot-toast';
 import apiClient from '../utils/apiClient';
+import notificationService from '../utils/notificationService';
 
 const Dashboard = () => {
   const { user } = useAuth();
   const [familyMembers, setFamilyMembers] = useState([]);
+  const [reminders, setReminders] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Load family members
+  // Load family members and reminders
   useEffect(() => {
-    const loadFamilyMembers = async () => {
+    const loadData = async () => {
       try {
-        console.log('Loading family members...');
-        const response = await apiClient.get('/family-members');
-        console.log('Family members response:', response.data);
-        setFamilyMembers(response.data.familyMembers || []);
+        console.log('Loading dashboard data...');
+        const [familyResponse, remindersResponse] = await Promise.all([
+          apiClient.get('/family-members'),
+          apiClient.get('/reminders')
+        ]);
+        
+        console.log('Family members response:', familyResponse.data);
+        console.log('Reminders response:', remindersResponse.data);
+        
+        setFamilyMembers(familyResponse.data.familyMembers || []);
+        setReminders(remindersResponse.data.reminders || []);
       } catch (error) {
-        console.error('Error loading family members:', error);
+        console.error('Error loading dashboard data:', error);
         console.error('Error response:', error.response?.data);
         if (error.response?.status !== 401) {
-          toast.error('Failed to load family members');
+          toast.error('Failed to load data');
         }
       } finally {
         setLoading(false);
       }
     };
 
-    loadFamilyMembers();
+    loadData();
+  }, []);
+
+  // Calculate reminder counts by type
+  const medicineCount = reminders.filter(r => r.reminder_type === 'medicine').length;
+  const appointmentCount = reminders.filter(r => r.reminder_type === 'appointment').length;
+  const checkupCount = reminders.filter(r => r.reminder_type === 'checkup').length;
+
+  // Start notification service when dashboard loads
+  useEffect(() => {
+    // Request notification permission if not already granted
+    if (Notification.permission === 'default') {
+      notificationService.requestPermission().then(granted => {
+        if (granted) {
+          notificationService.start(apiClient);
+        }
+      });
+    } else if (Notification.permission === 'granted') {
+      notificationService.start(apiClient);
+    }
+
+    // Cleanup on unmount
+    return () => {
+      // Don't stop the service on unmount, keep it running
+      // notificationService.stop();
+    };
   }, []);
 
   return (
@@ -71,41 +105,6 @@ const Dashboard = () => {
           <p className="text-medical-text text-sm md:text-base max-w-md mx-auto">
             Manage your family's medical records and health information in one secure place.
           </p>
-        </div>
-
-        {/* Quick Stats */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          <div className="bg-white rounded-2xl shadow-medical p-4 border border-medical-light/20">
-            <div className="text-center">
-              <div className="medical-icon-sm mb-2">👨‍👩‍👧‍👦</div>
-              <p className="text-xs text-medical-text mb-1">Family Members</p>
-              <p className="text-xl font-bold text-medical-dark">{familyMembers.length}</p>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-2xl shadow-medical p-4 border border-medical-light/20">
-            <div className="text-center">
-              <div className="medical-icon-sm mb-2">📋</div>
-              <p className="text-xs text-medical-text mb-1">Documents</p>
-              <p className="text-xl font-bold text-medical-dark">0</p>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-2xl shadow-medical p-4 border border-medical-light/20">
-            <div className="text-center">
-              <div className="medical-icon-sm mb-2">⏰</div>
-              <p className="text-xs text-medical-text mb-1">Reminders</p>
-              <p className="text-xl font-bold text-medical-dark">0</p>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-2xl shadow-medical p-4 border border-medical-light/20">
-            <div className="text-center">
-              <div className="medical-icon-sm mb-2">🤖</div>
-              <p className="text-xs text-medical-text mb-1">AI Insights</p>
-              <p className="text-xl font-bold text-medical-dark">0</p>
-            </div>
-          </div>
         </div>
 
         {/* Family Members Section */}
@@ -154,6 +153,84 @@ const Dashboard = () => {
               ))}
             </div>
           )}
+        </div>
+
+        {/* Reminders Section */}
+        <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl shadow-medical border-2 border-blue-200 p-6">
+          <div className="flex justify-between items-center mb-4">
+            <div>
+              <h3 className="text-lg font-bold text-blue-900 flex items-center">
+                <span className="text-2xl mr-2">🔔</span>
+                Reminders
+              </h3>
+              <p className="text-xs text-blue-700 mt-1">Never miss your medicine or appointments</p>
+            </div>
+            <Link
+              to="/reminders"
+              className="px-4 py-2 rounded-lg transition-all duration-200 text-sm font-semibold"
+              style={{ 
+                textDecoration: 'none',
+                backgroundColor: '#3b82f6',
+                color: '#ffffff',
+                boxShadow: '0 2px 8px rgba(59, 130, 246, 0.3)'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = '#2563eb';
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.4)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = '#3b82f6';
+                e.currentTarget.style.boxShadow = '0 2px 8px rgba(59, 130, 246, 0.3)';
+              }}
+            >
+              Manage Reminders
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+            <div className="bg-white rounded-xl p-4 border border-blue-200">
+              <div className="flex items-center space-x-3">
+                <div className="bg-green-100 rounded-full p-3">
+                  <span className="text-2xl">💊</span>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-600">Medicine Reminders</p>
+                  <p className="text-xl font-bold text-gray-900">{medicineCount}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-xl p-4 border border-blue-200">
+              <div className="flex items-center space-x-3">
+                <div className="bg-purple-100 rounded-full p-3">
+                  <span className="text-2xl">📅</span>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-600">Appointments</p>
+                  <p className="text-xl font-bold text-gray-900">{appointmentCount}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-xl p-4 border border-blue-200">
+              <div className="flex items-center space-x-3">
+                <div className="bg-yellow-100 rounded-full p-3">
+                  <span className="text-2xl">🩺</span>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-600">Checkups</p>
+                  <p className="text-xl font-bold text-gray-900">{checkupCount}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-4 bg-blue-100 rounded-xl p-4 border border-blue-300">
+            <p className="text-sm text-blue-800 flex items-center">
+              <span className="mr-2">💡</span>
+              <strong>Tip:</strong>&nbsp;Enable browser notifications to receive reminders even when the app is minimized!
+            </p>
+          </div>
         </div>
       </main>
     </div>

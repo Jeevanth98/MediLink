@@ -3,6 +3,7 @@ import Tesseract from 'tesseract.js';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import LabAnalysisService from './labAnalysisService.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -106,10 +107,39 @@ export class AIService {
       switch (actualType) {
         case 'Lab Report':
         case 'Lab Test': // Also accept "Lab Test" as valid type
-          const labAnalysis = this.analyzeLabReport(extractedText);
-          aiAnalysis = labAnalysis.fullAnalysis;
-          keyFindings = labAnalysis.keyFindings;
-          recommendations = labAnalysis.recommendations;
+          const labAnalysisResult = LabAnalysisService.analyzeLabReport(extractedText);
+          
+          // Convert new structured format to expected format
+          const allConcerns = [
+            ...labAnalysisResult.criticalConcerns.map(c => `🔴 CRITICAL: ${c}`),
+            ...labAnalysisResult.highConcerns.map(c => `🟠 HIGH: ${c}`),
+            ...labAnalysisResult.moderateConcerns.map(c => `🟡 MODERATE: ${c}`),
+            ...labAnalysisResult.mildConcerns.map(c => `🟢 MILD: ${c}`)
+          ];
+          
+          const allRecommendations = [
+            ...(labAnalysisResult.immediateActions.length ? ['⚠️ IMMEDIATE ACTIONS:', ...labAnalysisResult.immediateActions, ''] : []),
+            ...(labAnalysisResult.lifestyleRecommendations.length ? ['💪 LIFESTYLE RECOMMENDATIONS:', ...labAnalysisResult.lifestyleRecommendations, ''] : []),
+            ...(labAnalysisResult.dietaryAdvice.length ? ['🥗 DIETARY ADVICE:', ...labAnalysisResult.dietaryAdvice, ''] : []),
+            ...(labAnalysisResult.followUpAdvice.length ? ['📋 FOLLOW-UP:', ...labAnalysisResult.followUpAdvice] : [])
+          ];
+          
+          // Build full analysis summary
+          aiAnalysis = `📊 Lab Test Summary:\n` +
+                      `Total Tests Detected: ${labAnalysisResult.totalTests}\n` +
+                      `Normal Results: ${labAnalysisResult.normalCount}\n` +
+                      `Abnormal Results: ${labAnalysisResult.abnormalCount}\n\n` +
+                      (labAnalysisResult.normalResults.length ? 
+                        `✅ Normal Results:\n${labAnalysisResult.normalResults.join('\n')}\n\n` : '') +
+                      (allConcerns.length ? 
+                        `⚠️ Concerns Detected:\n${allConcerns.join('\n')}` : 
+                        '✅ All test results within normal ranges');
+          
+          keyFindings = labAnalysisResult.normalResults.slice(0, 5).join('\n') || 'No specific findings detected';
+          recommendations = allRecommendations.join('\n') || 'Continue regular health monitoring';
+          
+          // Store the structured result for API response
+          this._lastLabAnalysisResult = labAnalysisResult;
           break;
           
         case 'Prescription':
@@ -142,10 +172,26 @@ export class AIService {
 
       console.log('✅ Rule-based AI analysis completed successfully');
       
+      // Build areasOfConcern from the structured result if available
+      let areasOfConcern = '';
+      if (actualType === 'Lab Report' || actualType === 'Lab Test') {
+        const result = this._lastLabAnalysisResult;
+        if (result) {
+          const allConcerns = [
+            ...result.criticalConcerns.map(c => `🔴 CRITICAL: ${c}`),
+            ...result.highConcerns.map(c => `🟠 HIGH: ${c}`),
+            ...result.moderateConcerns.map(c => `🟡 MODERATE: ${c}`),
+            ...result.mildConcerns.map(c => `🟢 MILD: ${c}`)
+          ];
+          areasOfConcern = allConcerns.length ? allConcerns.join('\n') : '';
+        }
+      }
+      
       return {
         success: true,
         fullAnalysis: aiAnalysis,
         keyFindings: keyFindings,
+        areasOfConcern: areasOfConcern,
         recommendations: recommendations,
         error: null
       };
@@ -156,6 +202,7 @@ export class AIService {
         success: false,
         fullAnalysis: '',
         keyFindings: '',
+        areasOfConcern: '',
         recommendations: '',
         error: error.message
       };
@@ -211,28 +258,28 @@ export class AIService {
         highCondition: 'Prediabetes/Diabetes Risk'
       },
       'cholesterol_total': {
-        pattern: /(?:total\s+)?cholesterol[:\s]*([\d]+)\s*(mg\/dl)?/i,
+        pattern: /(?:total\s+)?cholesterol[:\s]+(\d+(?:\.\d+)?)\s*(?:mg\/dl)?/i,
         normalRange: { min: 125, max: 200, unit: 'mg/dL' },
-        lowCondition: 'Low Cholesterol',
-        highCondition: 'High Cholesterol'
+        lowCondition: 'Low Total Cholesterol (malnutrition risk)',
+        highCondition: 'High Total Cholesterol (cardiovascular risk)'
       },
       'hdl': {
-        pattern: /hdl[:\s]*([\d]+)\s*(mg\/dl)?/i,
+        pattern: /hdl[:\s]+cholesterol[:\s]+(\d+(?:\.\d+)?)\s*(?:mg\/dl)?/i,
         normalRange: { min: 40, max: 60, unit: 'mg/dL' },
-        lowCondition: 'Low HDL (Good Cholesterol)',
-        highCondition: 'High HDL (Good)'
+        lowCondition: 'Low HDL - Good Cholesterol (heart disease risk)',
+        highCondition: 'High HDL - Good Cholesterol (protective)'
       },
       'ldl': {
-        pattern: /ldl[:\s]*([\d]+)\s*(mg\/dl)?/i,
+        pattern: /ldl[:\s]+cholesterol[:\s]+(\d+(?:\.\d+)?)\s*(?:mg\/dl)?/i,
         normalRange: { min: 0, max: 100, unit: 'mg/dL' },
-        lowCondition: 'Low LDL',
-        highCondition: 'High LDL (Bad Cholesterol)'
+        lowCondition: 'Low LDL - Optimal',
+        highCondition: 'High LDL - Bad Cholesterol (heart disease risk)'
       },
       'triglycerides': {
-        pattern: /triglycerides[:\s]*([\d]+)\s*(mg\/dl)?/i,
+        pattern: /triglycerides[:\s]+(\d+(?:\.\d+)?)\s*(?:m[og]\/dl)?/i,
         normalRange: { min: 0, max: 150, unit: 'mg/dL' },
         lowCondition: 'Low Triglycerides',
-        highCondition: 'High Triglycerides'
+        highCondition: 'High Triglycerides (cardiovascular risk, pancreatitis risk)'
       },
       'creatinine': {
         pattern: /creatinine[:\s]*([\d.]+)\s*(mg\/dl)?/i,
@@ -313,6 +360,74 @@ export class AIService {
         normalRange: { min: 0, max: 3, unit: '/HPF' },
         lowCondition: 'Low RBC',
         highCondition: 'Hematuria (Blood in Urine)'
+      },
+      
+      // Liver Function Tests
+      'alt': {
+        pattern: /(?:alt|sgpt)[:\s]*([\d]+)\s*(?:u\/l|iu\/l)?/i,
+        normalRange: { min: 7, max: 56, unit: 'U/L' },
+        lowCondition: 'Low ALT',
+        highCondition: 'Elevated ALT (Liver Stress)'
+      },
+      'ast': {
+        pattern: /(?:ast|sgot)[:\s]*([\d]+)\s*(?:u\/l|iu\/l)?/i,
+        normalRange: { min: 10, max: 40, unit: 'U/L' },
+        lowCondition: 'Low AST',
+        highCondition: 'Elevated AST (Liver/Heart Damage)'
+      },
+      'bilirubin_total': {
+        pattern: /(?:total\s+)?bilirubin[:\s]*([\d.]+)\s*(?:mg\/dl)?/i,
+        normalRange: { min: 0.1, max: 1.2, unit: 'mg/dL' },
+        lowCondition: 'Low Bilirubin',
+        highCondition: 'Jaundice Risk (High Bilirubin)'
+      },
+      'albumin': {
+        pattern: /albumin[:\s]*([\d.]+)\s*(?:g\/dl)?/i,
+        normalRange: { min: 3.5, max: 5.5, unit: 'g/dL' },
+        lowCondition: 'Hypoalbuminemia (Low Albumin)',
+        highCondition: 'Hyperalbuminemia (High Albumin)'
+      },
+      
+      // Electrolytes
+      'sodium': {
+        pattern: /sodium[:\s]*([\d]+)\s*(?:meq\/l|mmol\/l)?/i,
+        normalRange: { min: 135, max: 145, unit: 'mEq/L' },
+        lowCondition: 'Hyponatremia (Low Sodium)',
+        highCondition: 'Hypernatremia (High Sodium)'
+      },
+      'potassium': {
+        pattern: /potassium[:\s]*([\d.]+)\s*(?:meq\/l|mmol\/l)?/i,
+        normalRange: { min: 3.5, max: 5.0, unit: 'mEq/L' },
+        lowCondition: 'Hypokalemia (Low Potassium)',
+        highCondition: 'Hyperkalemia (High Potassium)'
+      },
+      'calcium': {
+        pattern: /calcium[:\s]*([\d.]+)\s*(?:mg\/dl)?/i,
+        normalRange: { min: 8.5, max: 10.5, unit: 'mg/dL' },
+        lowCondition: 'Hypocalcemia (Low Calcium)',
+        highCondition: 'Hypercalcemia (High Calcium)'
+      },
+      
+      // Iron Studies
+      'iron': {
+        pattern: /(?:serum\s+)?iron[:\s]*([\d]+)\s*(?:mcg\/dl|ug\/dl)?/i,
+        normalRange: { min: 60, max: 170, unit: 'mcg/dL' },
+        lowCondition: 'Iron Deficiency',
+        highCondition: 'Iron Overload'
+      },
+      'ferritin': {
+        pattern: /ferritin[:\s]*([\d]+)\s*(?:ng\/ml)?/i,
+        normalRange: { min: 12, max: 300, unit: 'ng/mL' },
+        lowCondition: 'Low Iron Stores',
+        highCondition: 'High Ferritin (Inflammation/Iron Overload)'
+      },
+      
+      // Cardiac Markers
+      'troponin': {
+        pattern: /troponin[:\s]*([\d.]+)\s*(?:ng\/ml)?/i,
+        normalRange: { min: 0, max: 0.04, unit: 'ng/mL' },
+        lowCondition: 'Normal Troponin',
+        highCondition: 'Elevated Troponin (Heart Attack Risk)'
       }
     };
 
@@ -346,10 +461,16 @@ export class AIService {
         
         if (value < min) {
           findings.push(`• ${testName.toUpperCase()}: ${value} ${unit} (LOW - below normal range ${min}-${max} ${unit})`);
-          concerns.push(`• ${testInfo.lowCondition} detected`);
+          if (testInfo.lowCondition) {
+            concerns.push(`• ${testInfo.lowCondition}`);
+            console.log(`Added LOW concern for ${testName}: ${testInfo.lowCondition}`);
+          }
         } else if (value > max) {
           findings.push(`• ${testName.toUpperCase()}: ${value} ${unit} (HIGH - above normal range ${min}-${max} ${unit})`);
-          concerns.push(`• ${testInfo.highCondition} detected`);
+          if (testInfo.highCondition) {
+            concerns.push(`• ${testInfo.highCondition}`);
+            console.log(`Added HIGH concern for ${testName}: ${testInfo.highCondition}`);
+          }
         } else {
           findings.push(`• ${testName.toUpperCase()}: ${value} ${unit} (NORMAL - within range ${min}-${max} ${unit})`);
         }
@@ -379,8 +500,34 @@ export class AIService {
       recs.push('• Continue maintaining healthy lifestyle');
       recs.push('• Schedule routine check-ups as recommended by your doctor');
     } else {
-      recs.push('• Discuss these results with your healthcare provider');
-      recs.push('• Follow prescribed treatment plan');
+      recs.push('• ⚠️ IMPORTANT: Discuss these abnormal results with your healthcare provider immediately');
+      recs.push('• Follow prescribed treatment plan and medications');
+      recs.push('• Schedule follow-up tests as recommended');
+      
+      // Add specific recommendations based on detected concerns
+      if (concerns.some(c => /cholesterol|triglycerides|ldl/i.test(c))) {
+        recs.push('• Consider dietary changes: reduce saturated fats, increase fiber intake');
+        recs.push('• Regular cardiovascular exercise (30 min/day, 5 days/week)');
+        recs.push('• Consider consultation with a cardiologist or nutritionist');
+      }
+      
+      if (concerns.some(c => /glucose|diabetes|hba1c/i.test(c))) {
+        recs.push('• Monitor blood sugar levels regularly');
+        recs.push('• Reduce sugar and refined carbohydrate intake');
+        recs.push('• Consider consultation with an endocrinologist');
+      }
+      
+      if (concerns.some(c => /kidney|creatinine|bun/i.test(c))) {
+        recs.push('• Stay well-hydrated (8-10 glasses of water daily)');
+        recs.push('• Monitor protein intake');
+        recs.push('• Consider nephrology consultation');
+      }
+      
+      if (concerns.some(c => /liver|alt|ast|bilirubin/i.test(c))) {
+        recs.push('• Avoid alcohol consumption');
+        recs.push('• Review medications with your doctor');
+        recs.push('• Consider hepatology consultation');
+      }
     }
 
     const fullAnalysis = `📊 Lab Report Analysis
@@ -393,9 +540,16 @@ ${recs.join('\n')}
 
 📌 Important: This is an automated analysis. Always consult with your healthcare provider for proper medical advice.`;
 
+    console.log(`=== Analysis Complete ===`);
+    console.log(`Findings count: ${findings.length}`);
+    console.log(`Concerns count: ${concerns.length}`);
+    console.log(`Concerns array:`, concerns);
+    console.log(`========================`);
+
     return {
       fullAnalysis,
       keyFindings: findings.join('\n'),
+      areasOfConcern: concerns.join('\n'),
       recommendations: recs.join('\n')
     };
   }

@@ -179,4 +179,34 @@ export const initDatabase = () => {
       console.error('Error adding document_type column:', err.message);
     }
   });
+
+  // Create reminders table
+  const createRemindersTable = `
+    CREATE TABLE IF NOT EXISTS reminders (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      family_member_id INTEGER,
+      reminder_type TEXT NOT NULL,
+      title TEXT NOT NULL,
+      description TEXT,
+      reminder_time TEXT NOT NULL,
+      reminder_days TEXT NOT NULL,
+      start_date DATE NOT NULL,
+      end_date DATE,
+      is_active BOOLEAN DEFAULT 1,
+      last_triggered DATETIME,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
+      FOREIGN KEY (family_member_id) REFERENCES family_members (id) ON DELETE CASCADE
+    )
+  `;
+
+  db.run(createRemindersTable, (err) => {
+    if (err) {
+      console.error('Error creating reminders table:', err.message);
+    } else {
+      console.log('✅ Reminders table ready');
+    }
+  });
 };

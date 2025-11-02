@@ -516,17 +516,19 @@ const AddMedicalRecord = () => {
             )}
 
             {/* Form Actions */}
-            <div className="flex flex-col sm:flex-row gap-4 pt-6 border-t border-medical-light">
+            <div className="flex flex-col sm:flex-row gap-4 -mt-3 pt-3 border-t border-medical-light">
               <Link
                 to={`/family-member/${familyMemberId}`}
-                className="flex-1 px-6 py-3 bg-gray-100 text-gray-700 rounded-xl font-bold text-center hover:bg-gray-200 transition-colors border-2 border-gray-200"
+                style={{backgroundColor: '#dc2626', color: 'white', borderRadius: '12px'}}
+                className="flex-1 px-4 py-2.5 font-semibold text-center hover:bg-red-700 transition-all transform hover:scale-105 shadow-md hover:shadow-lg"
               >
-                Cancel
+                ❌ Cancel
               </Link>
               <button
                 type="submit"
                 disabled={saving || fileErrors.length > 0}
-                className="flex-1 bg-gradient-to-r from-medical-primary to-medical-secondary text-white px-6 py-4 rounded-xl font-bold text-lg hover:shadow-xl transform hover:scale-105 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center space-x-3 border-2 border-medical-primary"
+                style={{backgroundColor: '#2563eb', color: 'white', borderRadius: '12px'}}
+                className="flex-1 px-4 py-2.5 font-semibold text-base hover:shadow-lg transform hover:scale-105 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center space-x-2 shadow-md"
               >
                 {saving ? (
                   <>

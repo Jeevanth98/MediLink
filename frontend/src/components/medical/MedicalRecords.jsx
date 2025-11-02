@@ -16,6 +16,8 @@ const MedicalRecords = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [analyzingRecordId, setAnalyzingRecordId] = useState(null);
   const [analysisResults, setAnalysisResults] = useState({});
+  const [expandedAnalysis, setExpandedAnalysis] = useState({});
+  const [deletingRecordId, setDeletingRecordId] = useState(null);
 
   const recordTypeOptions = [
     'Consultation', 'Lab Test', 'Imaging', 'Surgery', 'Prescription', 
@@ -114,16 +116,26 @@ const MedicalRecords = () => {
     try {
       // Analyze each document in the record
       const analysisPromises = record.files.map(async (file) => {
-        const response = await apiClient.post(`/ai/analyze/document/${file.id}`);
+        const response = await apiClient.post(`/ai/analyze/document/${file.id}?_t=${Date.now()}`);
+        console.log('📊 Analysis Response:', response.data);
+        console.log('🔍 Areas of Concern:', response.data?.analysis?.aiAnalysis?.areasOfConcern);
         return response.data;
       });
 
       const results = await Promise.all(analysisPromises);
       
+      console.log('📊 All Analysis Results:', results);
+      
       // Store analysis results for this record
       setAnalysisResults(prev => ({
         ...prev,
         [record.id]: results
+      }));
+
+      // Auto-expand the analysis after completion
+      setExpandedAnalysis(prev => ({
+        ...prev,
+        [record.id]: true
       }));
 
       toast.success('Analysis completed!');
@@ -132,6 +144,35 @@ const MedicalRecords = () => {
       toast.error(error.response?.data?.error || 'Failed to analyze documents');
     } finally {
       setAnalyzingRecordId(null);
+    }
+  };
+
+  const toggleAnalysis = (recordId) => {
+    setExpandedAnalysis(prev => ({
+      ...prev,
+      [recordId]: !prev[recordId]
+    }));
+  };
+
+  const handleDeleteRecord = async (recordId) => {
+    if (!window.confirm('Are you sure you want to delete this medical record? This action cannot be undone.')) {
+      return;
+    }
+
+    setDeletingRecordId(recordId);
+
+    try {
+      await apiClient.delete(`/medical-records/${recordId}`);
+      
+      // Remove the record from the local state
+      setRecords(prevRecords => prevRecords.filter(record => record.id !== recordId));
+      
+      toast.success('Medical record deleted successfully');
+    } catch (error) {
+      console.error('Delete error:', error);
+      toast.error(error.response?.data?.error || 'Failed to delete medical record');
+    } finally {
+      setDeletingRecordId(null);
     }
   };
 
@@ -290,15 +331,41 @@ const MedicalRecords = () => {
                               </span>
                             )}
                           </div>
-                          <div className="flex space-x-2">
+                          <div className="flex items-center space-x-3 mt-3">
                             <button
                               onClick={() => handleAnalyzeRecord(record)}
                               disabled={analyzingRecordId === record.id || !record.files || record.files.length === 0}
-                              className={`${
-                                analyzingRecordId === record.id || !record.files || record.files.length === 0
-                                  ? 'bg-gray-300 cursor-not-allowed'
-                                  : 'bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700'
-                              } text-white px-6 py-3 rounded-xl transition-all text-sm font-bold shadow-lg border-2 border-purple-500 hover:border-purple-700 flex items-center space-x-2`}
+                              style={{
+                                backgroundColor: analyzingRecordId === record.id || !record.files || record.files.length === 0
+                                  ? '#d1d5db'
+                                  : '#3b82f6',
+                                color: '#ffffff',
+                                boxShadow: analyzingRecordId === record.id || !record.files || record.files.length === 0
+                                  ? 'none'
+                                  : '0 2px 8px rgba(59, 130, 246, 0.3)',
+                                border: '2px solid',
+                                borderColor: analyzingRecordId === record.id || !record.files || record.files.length === 0
+                                  ? '#d1d5db'
+                                  : '#3b82f6',
+                                cursor: analyzingRecordId === record.id || !record.files || record.files.length === 0
+                                  ? 'not-allowed'
+                                  : 'pointer'
+                              }}
+                              className="px-4 py-2 rounded-lg transition-all duration-200 text-sm font-semibold flex items-center space-x-2"
+                              onMouseEnter={(e) => {
+                                if (!analyzingRecordId && record.files && record.files.length > 0) {
+                                  e.currentTarget.style.backgroundColor = '#2563eb';
+                                  e.currentTarget.style.borderColor = '#2563eb';
+                                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.4)';
+                                }
+                              }}
+                              onMouseLeave={(e) => {
+                                if (!analyzingRecordId && record.files && record.files.length > 0) {
+                                  e.currentTarget.style.backgroundColor = '#3b82f6';
+                                  e.currentTarget.style.borderColor = '#3b82f6';
+                                  e.currentTarget.style.boxShadow = '0 2px 8px rgba(59, 130, 246, 0.3)';
+                                }
+                              }}
                             >
                               {analyzingRecordId === record.id ? (
                                 <>
@@ -312,12 +379,46 @@ const MedicalRecords = () => {
                                 </>
                               )}
                             </button>
-                            {record.files && record.files.length > 0 && (
-                              <span className="bg-blue-100 px-4 py-3 rounded-xl text-blue-700 text-sm font-medium flex items-center space-x-2">
-                                <span>📎</span>
-                                <span>{record.files.length} file{record.files.length > 1 ? 's' : ''}</span>
-                              </span>
-                            )}
+                            
+                            <button
+                              onClick={() => handleDeleteRecord(record.id)}
+                              disabled={deletingRecordId === record.id}
+                              style={{
+                                backgroundColor: deletingRecordId === record.id ? '#d1d5db' : '#ef4444',
+                                color: '#ffffff',
+                                boxShadow: deletingRecordId === record.id ? 'none' : '0 2px 8px rgba(239, 68, 68, 0.3)',
+                                border: '2px solid',
+                                borderColor: deletingRecordId === record.id ? '#d1d5db' : '#ef4444',
+                                cursor: deletingRecordId === record.id ? 'not-allowed' : 'pointer'
+                              }}
+                              className="px-4 py-2 rounded-lg transition-all duration-200 text-sm font-semibold flex items-center space-x-2"
+                              onMouseEnter={(e) => {
+                                if (deletingRecordId !== record.id) {
+                                  e.currentTarget.style.backgroundColor = '#dc2626';
+                                  e.currentTarget.style.borderColor = '#dc2626';
+                                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(239, 68, 68, 0.4)';
+                                }
+                              }}
+                              onMouseLeave={(e) => {
+                                if (deletingRecordId !== record.id) {
+                                  e.currentTarget.style.backgroundColor = '#ef4444';
+                                  e.currentTarget.style.borderColor = '#ef4444';
+                                  e.currentTarget.style.boxShadow = '0 2px 8px rgba(239, 68, 68, 0.3)';
+                                }
+                              }}
+                            >
+                              {deletingRecordId === record.id ? (
+                                <>
+                                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                                  <span>Deleting...</span>
+                                </>
+                              ) : (
+                                <>
+                                  <span className="text-lg">🗑️</span>
+                                  <span>Delete</span>
+                                </>
+                              )}
+                            </button>
                           </div>
                         </div>
                       </div>
@@ -414,12 +515,26 @@ const MedicalRecords = () => {
                       {/* AI Analysis Results */}
                       {analysisResults[record.id] && (
                         <div className="mt-6 pt-6 border-t-2 border-purple-200">
-                          <div className="flex items-center space-x-2 mb-4">
-                            <span className="text-2xl">🧠</span>
-                            <h4 className="font-bold text-purple-900 text-lg">AI Analysis Results</h4>
-                          </div>
+                          <button
+                            onClick={() => toggleAnalysis(record.id)}
+                            className="flex items-center justify-between w-full p-3 bg-gradient-to-r from-purple-100 to-indigo-100 rounded-lg hover:from-purple-200 hover:to-indigo-200 transition-all"
+                          >
+                            <div className="flex items-center space-x-2">
+                              <span className="text-xl">🧠</span>
+                              <h4 className="font-bold text-purple-900 text-base">AI Analysis Results</h4>
+                              <span className="text-xs bg-purple-600 text-white px-2 py-1 rounded-full">
+                                {analysisResults[record.id].length} document(s)
+                              </span>
+                            </div>
+                            <span className="text-xl transform transition-transform duration-200" style={{
+                              transform: expandedAnalysis[record.id] ? 'rotate(180deg)' : 'rotate(0deg)'
+                            }}>
+                              ▼
+                            </span>
+                          </button>
 
-                          {analysisResults[record.id].map((result, index) => (
+                          {expandedAnalysis[record.id] && (
+                            <div className="mt-4">{analysisResults[record.id].map((result, index) => (
                             <div key={index} className="mb-6">
                               {result.success ? (
                                 <div className="space-y-4">
@@ -433,30 +548,64 @@ const MedicalRecords = () => {
                                     </div>
                                   )}
 
-                                  {/* Analysis Insights */}
-                                  <div className="bg-white rounded-xl p-5 shadow-md border border-gray-200">
-                                    <h5 className="font-bold text-gray-900 mb-4 text-base flex items-center border-b border-gray-200 pb-3">
-                                      <span className="mr-2 text-xl">📊</span>
-                                      Analysis Insights
-                                    </h5>
-                                    <div className="text-gray-700 leading-relaxed space-y-3">
-                                      {result.analysis.aiAnalysis.fullAnalysis.split('\n').map((line, i) => (
-                                        <p key={i} className="text-sm">{line}</p>
-                                      ))}
-                                    </div>
-                                  </div>
-
-                                  {/* Key Findings */}
+                                  {/* Key Findings - Test Results */}
                                   {result.analysis.aiAnalysis.keyFindings && (
-                                    <div className="bg-green-50 rounded-xl p-5 border-2 border-green-200">
+                                    <div className="bg-blue-50 rounded-xl p-5 border-2 border-blue-200">
+                                      <h6 className="font-bold text-blue-900 mb-3 text-sm flex items-center">
+                                        <span className="mr-2">📊</span>
+                                        Test Results
+                                      </h6>
+                                      <div className="text-blue-800 text-sm leading-relaxed space-y-1">
+                                        {result.analysis.aiAnalysis.keyFindings.split('\n').map((line, i) => {
+                                          const trimmedLine = line.trim();
+                                          if (!trimmedLine) return null;
+                                          
+                                          // Filter out only specific metadata lines (case-insensitive)
+                                          const lowerLine = trimmedLine.toLowerCase();
+                                          const isMetadata = 
+                                            lowerLine.startsWith('patient name:') ||
+                                            lowerLine.startsWith('patient id:') ||
+                                            lowerLine.startsWith('doctor:') ||
+                                            lowerLine.startsWith('doctor name:') ||
+                                            lowerLine.startsWith('hospital:') ||
+                                            lowerLine.startsWith('clinic:') ||
+                                            lowerLine.startsWith('laboratory:') ||
+                                            lowerLine.startsWith('lab:') ||
+                                            lowerLine.startsWith('referred by:') ||
+                                            lowerLine.startsWith('collected by:') ||
+                                            lowerLine.startsWith('sample collected:');
+                                          
+                                          if (isMetadata) {
+                                            return null;
+                                          }
+                                          
+                                          return <p key={i} className="pl-2">{trimmedLine}</p>;
+                                        })}
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {/* Areas of Concern */}
+                                  {result.analysis?.aiAnalysis?.areasOfConcern && result.analysis.aiAnalysis.areasOfConcern.trim() !== '' ? (
+                                    <div className="bg-orange-50 rounded-xl p-5 border-2 border-orange-300">
+                                      <h6 className="font-bold text-orange-900 mb-3 text-sm flex items-center">
+                                        <span className="mr-2">⚠️</span>
+                                        Areas of Concern
+                                      </h6>
+                                      <div className="text-orange-800 text-sm leading-relaxed space-y-2">
+                                        {result.analysis.aiAnalysis.areasOfConcern.split('\n').map((line, i) => (
+                                          line.trim() && <p key={i}>{line}</p>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <div className="bg-green-50 rounded-xl p-5 border-2 border-green-300">
                                       <h6 className="font-bold text-green-900 mb-3 text-sm flex items-center">
                                         <span className="mr-2">✅</span>
-                                        Key Findings
+                                        Areas of Concern
                                       </h6>
-                                      <div className="text-green-800 text-sm leading-relaxed space-y-2">
-                                        {result.analysis.aiAnalysis.keyFindings.split('\n').map((line, i) => (
-                                          <p key={i}>{line}</p>
-                                        ))}
+                                      <div className="text-green-800 text-sm leading-relaxed">
+                                        <p>No abnormal findings detected. All test results are within acceptable ranges.</p>
                                       </div>
                                     </div>
                                   )}
@@ -464,14 +613,59 @@ const MedicalRecords = () => {
                                   {/* Recommendations */}
                                   {result.analysis.aiAnalysis.recommendations && (
                                     <div className="bg-blue-50 rounded-xl p-5 border-2 border-blue-200">
-                                      <h6 className="font-bold text-blue-900 mb-3 text-sm flex items-center">
+                                      <h6 className="font-bold text-blue-900 mb-4 text-sm flex items-center">
                                         <span className="mr-2">💡</span>
                                         Recommendations
                                       </h6>
-                                      <div className="text-blue-800 text-sm leading-relaxed space-y-2">
-                                        {result.analysis.aiAnalysis.recommendations.split('\n').map((line, i) => (
-                                          <p key={i}>{line}</p>
-                                        ))}
+                                      <div className="text-blue-800 text-sm space-y-3">
+                                        {result.analysis.aiAnalysis.recommendations.split('\n').map((line, i) => {
+                                          // Check if line is a section header
+                                          if (line.includes('IMMEDIATE ACTIONS:')) {
+                                            return (
+                                              <div key={i} className="pt-1">
+                                                <h6 className="font-semibold text-red-700 text-sm mb-2 flex items-center">
+                                                  <span className="mr-2">⚠️</span>
+                                                  {line.replace('⚠️', '').trim()}
+                                                </h6>
+                                              </div>
+                                            );
+                                          } else if (line.includes('LIFESTYLE RECOMMENDATIONS:')) {
+                                            return (
+                                              <div key={i} className="pt-2">
+                                                <h6 className="font-semibold text-blue-700 text-sm mb-2 flex items-center">
+                                                  <span className="mr-2">💪</span>
+                                                  {line.replace('💪', '').trim()}
+                                                </h6>
+                                              </div>
+                                            );
+                                          } else if (line.includes('DIETARY ADVICE:')) {
+                                            return (
+                                              <div key={i} className="pt-2">
+                                                <h6 className="font-semibold text-green-700 text-sm mb-2 flex items-center">
+                                                  <span className="mr-2">🥗</span>
+                                                  {line.replace('🥗', '').trim()}
+                                                </h6>
+                                              </div>
+                                            );
+                                          } else if (line.includes('FOLLOW-UP:')) {
+                                            return (
+                                              <div key={i} className="pt-2">
+                                                <h6 className="font-semibold text-indigo-700 text-sm mb-2 flex items-center">
+                                                  <span className="mr-2">📋</span>
+                                                  {line.replace('📋', '').trim()}
+                                                </h6>
+                                              </div>
+                                            );
+                                          } else if (line.trim()) {
+                                            // Regular recommendation item - show all non-empty lines
+                                            return (
+                                              <p key={i} className="text-blue-900 pl-6 leading-relaxed">
+                                                • {line.trim()}
+                                              </p>
+                                            );
+                                          }
+                                          return null;
+                                        })}
                                       </div>
                                     </div>
                                   )}
@@ -522,6 +716,8 @@ const MedicalRecords = () => {
                               )}
                             </div>
                           ))}
+                          </div>
+                          )}
                         </div>
                       )}
                     </div>

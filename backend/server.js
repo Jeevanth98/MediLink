@@ -7,6 +7,7 @@ import familyMembersRoutes from './routes/familyMembers.js';
 import medicalRecordsRoutes from './routes/medicalRecords.js';
 import filesRoutes from './routes/files.js';
 import aiAnalysisRoutes from './routes/aiAnalysis.js';
+import remindersRoutes from './routes/reminders.js';
 
 dotenv.config();
 
@@ -29,6 +30,7 @@ app.use('/api/family-members', familyMembersRoutes);
 app.use('/api/medical-records', medicalRecordsRoutes);
 app.use('/api/files', filesRoutes);
 app.use('/api/ai', aiAnalysisRoutes);
+app.use('/api/reminders', remindersRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

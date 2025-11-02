@@ -158,6 +158,7 @@ router.post('/analyze/document/:documentId', authenticateToken, async (req, res)
                   aiAnalysis: {
                     fullAnalysis: aiResult.fullAnalysis,
                     keyFindings: aiResult.keyFindings,
+                    areasOfConcern: aiResult.areasOfConcern,
                     recommendations: aiResult.recommendations
                   },
                   analysisTimestamp: new Date().toISOString()
